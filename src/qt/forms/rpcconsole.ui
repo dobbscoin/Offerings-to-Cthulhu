@@ -1023,14 +1023,14 @@
           </font>
          </property>
          <property name="text">
-          <string>Mining — Worthless On Purpose</string>
+          <string>Solo CPU Mining</string>
          </property>
         </widget>
        </item>
        <item>
         <widget class="QLabel" name="miningHelp">
          <property name="text">
-          <string>The Slumbering Lord does not need your CPU. He simply notices when you offer it. CPU mining at current network hashrate will earn fractional OFF per hour; participation is the point.</string>
+          <string>The Slumbering Lord does not need your CPU. He simply notices when you offer it. Solo CPU mining at current network hashrate will earn fractional OFF per hour; the offering matters more than the size.</string>
          </property>
          <property name="wordWrap">
           <bool>true</bool>
@@ -1039,46 +1039,6 @@
        </item>
        <item>
         <widget class="Line" name="miningSep1">
-         <property name="orientation">
-          <enum>Qt::Horizontal</enum>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QLabel" name="miningModeLabel">
-         <property name="font">
-          <font>
-           <weight>75</weight>
-           <bold>true</bold>
-          </font>
-         </property>
-         <property name="text">
-          <string>Mode</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QRadioButton" name="radioMiningSolo">
-         <property name="text">
-          <string>Solo — sovereign, high-variance (uses built-in setgenerate)</string>
-         </property>
-         <property name="checked">
-          <bool>true</bool>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QRadioButton" name="radioMiningPool">
-         <property name="enabled">
-          <bool>false</bool>
-         </property>
-         <property name="text">
-          <string>Pool — smoother payouts via pool.23skidoo.info (available in v2.1+)</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="Line" name="miningSep2">
          <property name="orientation">
           <enum>Qt::Horizontal</enum>
          </property>
