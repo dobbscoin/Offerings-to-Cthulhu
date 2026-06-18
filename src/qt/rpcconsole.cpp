@@ -26,10 +26,22 @@
 #include <QScrollBar>
 #include <QThread>
 #include <QTime>
+#include <QTimer>
 
 #if QT_VERSION < 0x050000
 #include <QUrl>
 #endif
+
+// Issue #8 PR A — Mining tab live status. dHashesPerSec is the same global the
+// gethashespersec / getmininginfo RPCs read; defined in src/miner.cpp.
+extern double dHashesPerSec;
+
+// OFFSIG window — solo mining is locked in this height range because the chain
+// only accepts Conclave-signed blocks. Outside it solo mining is permissionless.
+// Mirrors chainparams.cpp::nSignedWindowStart / nOpenMiningHeight.
+static const int kOffsigWindowStart = 999991;
+static const int kOffsigWindowEnd   = 1050666;
+static const int kMiningPollMs      = 2000;
 
 // TODO: add a scrollback limit, as there is currently none
 // TODO: make it possible to filter out categories (esp debug messages when implemented)
@@ -204,7 +216,9 @@ RPCConsole::RPCConsole(QWidget *parent) :
     clientModel(0),
     historyPtr(0),
     cachedNodeid(-1),
-    peersTableContextMenu(0)
+    peersTableContextMenu(0),
+    miningPollTimer(0),
+    miningSuspendedByOffsig(false)
 {
     ui->setupUi(this);
     GUIUtil::restoreWindowGeometry("nRPCConsoleWindow", this->size(), this);
@@ -222,6 +236,15 @@ RPCConsole::RPCConsole(QWidget *parent) :
 
     // set OpenSSL version label
     ui->openSSLVersion->setText(SSLeay_version(SSLEAY_VERSION));
+
+    // Mining tab (issue #8 PR A — solo mode only).
+    // Spinner max = idealThreadCount. Timer polls dHashesPerSec while the tab is visible.
+    int idealThreads = QThread::idealThreadCount();
+    if (idealThreads < 1) idealThreads = 1;
+    ui->miningThreads->setMaximum(idealThreads);
+    miningPollTimer = new QTimer(this);
+    miningPollTimer->setInterval(kMiningPollMs);
+    connect(miningPollTimer, SIGNAL(timeout()), this, SLOT(updateMiningStatus()));
 
     startExecutor();
     setTrafficGraphRange(INITIAL_TRAFFIC_GRAPH_MINS);
@@ -407,6 +430,7 @@ void RPCConsole::setNumBlocks(int count)
     ui->numberOfBlocks->setText(QString::number(count));
     if(clientModel)
         ui->lastBlockTime->setText(clientModel->getLastBlockDate().toString());
+    updateMiningOffsigGuard(count);
 }
 
 void RPCConsole::on_lineEdit_returnPressed()
@@ -482,6 +506,130 @@ void RPCConsole::on_tabWidget_currentChanged(int index)
     else if(clientModel)
     {
         clientModel->getPeerTableModel()->stopAutoRefresh();
+    }
+
+    // Issue #8 PR A — only poll the hashrate while the Mining tab is visible.
+    if(miningPollTimer)
+    {
+        if(ui->tabWidget->widget(index) == ui->tab_mining)
+        {
+            updateMiningStatus();
+            miningPollTimer->start();
+        }
+        else
+        {
+            miningPollTimer->stop();
+        }
+    }
+}
+
+// ============================================================================
+// Issue #8 PR A — Mining tab (solo mode only)
+// ============================================================================
+
+void RPCConsole::on_miningEnable_toggled(bool checked)
+{
+    // OFFSIG window guard. If the user somehow toggles on inside the window
+    // (shouldn't be possible — the checkbox is greyed — but be defensive),
+    // immediately bounce it back off and log.
+    if(checked && clientModel)
+    {
+        int h = clientModel->getNumBlocks();
+        if(h >= kOffsigWindowStart && h <= kOffsigWindowEnd)
+        {
+            ui->miningEnable->blockSignals(true);
+            ui->miningEnable->setChecked(false);
+            ui->miningEnable->blockSignals(false);
+            ui->miningStatus->setText(tr("Mining locked during the Codex window."));
+            return;
+        }
+    }
+
+    int threads = ui->miningThreads->value();
+    QString cmd = checked
+        ? QString("setgenerate true %1").arg(threads)
+        : QString("setgenerate false");
+    message(CMD_REQUEST, cmd);
+    emit cmdRequest(cmd);
+
+    updateMiningStatus();
+}
+
+void RPCConsole::on_miningThreads_valueChanged(int value)
+{
+    // If we're currently mining, dispatch a new setgenerate to pick up the
+    // thread-count change. Otherwise the new value just sits in the spinner
+    // and takes effect on the next toggle-on.
+    if(ui->miningEnable->isChecked())
+    {
+        QString cmd = QString("setgenerate true %1").arg(value);
+        message(CMD_REQUEST, cmd);
+        emit cmdRequest(cmd);
+    }
+}
+
+void RPCConsole::updateMiningStatus()
+{
+    // OFFSIG banner takes precedence — keep that line until the window passes.
+    if(miningSuspendedByOffsig)
+        return;
+
+    if(!ui->miningEnable->isChecked())
+    {
+        ui->miningStatus->setText(tr("Mining stopped."));
+        return;
+    }
+
+    double hps = dHashesPerSec;
+    if(hps <= 0.0)
+    {
+        ui->miningStatus->setText(tr("Mining starting…"));
+    }
+    else if(hps < 1000.0)
+    {
+        ui->miningStatus->setText(tr("Mining at %1 H/s").arg(hps, 0, 'f', 1));
+    }
+    else if(hps < 1e6)
+    {
+        ui->miningStatus->setText(tr("Mining at %1 kH/s").arg(hps / 1e3, 0, 'f', 2));
+    }
+    else
+    {
+        ui->miningStatus->setText(tr("Mining at %1 MH/s").arg(hps / 1e6, 0, 'f', 2));
+    }
+}
+
+void RPCConsole::updateMiningOffsigGuard(int height)
+{
+    bool inWindow = (height >= kOffsigWindowStart && height <= kOffsigWindowEnd);
+
+    ui->miningOffsigBanner->setVisible(inWindow);
+    ui->radioMiningSolo->setEnabled(!inWindow);
+    ui->miningEnable->setEnabled(!inWindow);
+    ui->miningThreads->setEnabled(!inWindow);
+
+    if(inWindow)
+    {
+        // If solo mining was running when we entered the window, dispatch a
+        // setgenerate false and remember that we did so. We don't auto-restore
+        // when the window ends — the user re-enables manually post-canon.
+        if(ui->miningEnable->isChecked())
+        {
+            ui->miningEnable->blockSignals(true);
+            ui->miningEnable->setChecked(false);
+            ui->miningEnable->blockSignals(false);
+            QString cmd = QString("setgenerate false");
+            message(CMD_REQUEST, cmd);
+            emit cmdRequest(cmd);
+        }
+        miningSuspendedByOffsig = true;
+        ui->miningStatus->setText(tr("Mining locked — Codex window in effect."));
+    }
+    else if(miningSuspendedByOffsig)
+    {
+        // Window just ended. Clear the suspended flag and refresh the status line.
+        miningSuspendedByOffsig = false;
+        updateMiningStatus();
     }
 }
 
