@@ -1009,6 +1009,171 @@
        </item>
       </layout>
      </widget>
+     <widget class="QWidget" name="tab_mining">
+      <attribute name="title">
+       <string>&amp;Mining</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="verticalLayout_mining">
+       <item>
+        <widget class="QLabel" name="miningHeader">
+         <property name="font">
+          <font>
+           <weight>75</weight>
+           <bold>true</bold>
+          </font>
+         </property>
+         <property name="text">
+          <string>Mining — Worthless On Purpose</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="miningHelp">
+         <property name="text">
+          <string>The Slumbering Lord does not need your CPU. He simply notices when you offer it. CPU mining at current network hashrate will earn fractional OFF per hour; participation is the point.</string>
+         </property>
+         <property name="wordWrap">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="Line" name="miningSep1">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="miningModeLabel">
+         <property name="font">
+          <font>
+           <weight>75</weight>
+           <bold>true</bold>
+          </font>
+         </property>
+         <property name="text">
+          <string>Mode</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QRadioButton" name="radioMiningSolo">
+         <property name="text">
+          <string>Solo — sovereign, high-variance (uses built-in setgenerate)</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QRadioButton" name="radioMiningPool">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
+         <property name="text">
+          <string>Pool — smoother payouts via pool.23skidoo.info (available in v2.1+)</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="Line" name="miningSep2">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="miningEnable">
+         <property name="text">
+          <string>Mine Offerings</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="miningThreadsRow">
+         <item>
+          <widget class="QLabel" name="miningThreadsLabel">
+           <property name="text">
+            <string>CPU threads:</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QSpinBox" name="miningThreads">
+           <property name="minimum">
+            <number>1</number>
+           </property>
+           <property name="maximum">
+            <number>256</number>
+           </property>
+           <property name="value">
+            <number>1</number>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="miningThreadsSpacer">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <widget class="QLabel" name="miningStatus">
+         <property name="font">
+          <font>
+           <italic>true</italic>
+          </font>
+         </property>
+         <property name="text">
+          <string>Mining stopped.</string>
+         </property>
+         <property name="textInteractionFlags">
+          <set>Qt::TextSelectableByMouse</set>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="miningOffsigBanner">
+         <property name="visible">
+          <bool>false</bool>
+         </property>
+         <property name="styleSheet">
+          <string notr="true">QLabel { background-color: #4a2020; color: #e0d0d0; padding: 6px; border: 1px solid #602020; border-radius: 3px; }</string>
+         </property>
+         <property name="text">
+          <string>Solo mining is locked during the Codex inscription window (heights 999,991 – 1,050,666). The chain is Conclave-signed; outsider blocks would be rejected. Resumes automatically at block 1,050,667.</string>
+         </property>
+         <property name="wordWrap">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="miningVerticalSpacer">
+         <property name="orientation">
+          <enum>Qt::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>40</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </widget>
     </widget>
    </item>
   </layout>
