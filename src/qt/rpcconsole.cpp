@@ -604,7 +604,6 @@ void RPCConsole::updateMiningOffsigGuard(int height)
     bool inWindow = (height >= kOffsigWindowStart && height <= kOffsigWindowEnd);
 
     ui->miningOffsigBanner->setVisible(inWindow);
-    ui->radioMiningSolo->setEnabled(!inWindow);
     ui->miningEnable->setEnabled(!inWindow);
     ui->miningThreads->setEnabled(!inWindow);
 
