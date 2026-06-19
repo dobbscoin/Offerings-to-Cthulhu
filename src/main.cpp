@@ -2533,6 +2533,32 @@ void static FindMostWorkChain() {
     chainMostWork.SetTip(pindexNew);
 }
 
+// Mark pindex and every active-chain descendant as invalid, then re-select the best chain.
+// Modelled on Bitcoin Core 0.10 InvalidateBlock. Caller must hold cs_main.
+// STAGED: do not call on live chain without explicit human confirmation.
+// Known issues (see commit message): genesis-hash input crashes the daemon
+// via DisconnectTip's pprev assert; no reconsiderblock companion to undo;
+// bypasses rolling-checkpoints (#6); return value not checked by the RPC.
+bool InvalidateBlock(CValidationState& state, CBlockIndex *pindex)
+{
+    AssertLockHeld(cs_main);
+    pindex->nStatus |= BLOCK_FAILED_VALID;
+    pblocktree->WriteBlockIndex(CDiskBlockIndex(pindex));
+    setBlockIndexValid.erase(pindex);
+    // Walk the active chain from its tip down to pindex, flagging each
+    // block BLOCK_FAILED_CHILD and disconnecting it one at a time.
+    while (chainActive.Contains(pindex)) {
+        CBlockIndex *pindexWalk = chainActive.Tip();
+        pindexWalk->nStatus |= BLOCK_FAILED_CHILD;
+        pblocktree->WriteBlockIndex(CDiskBlockIndex(pindexWalk));
+        setBlockIndexValid.erase(pindexWalk);
+        if (!DisconnectTip(state))
+            return false;
+    }
+    InvalidChainFound(pindex);
+    return ActivateBestChain(state);
+}
+
 // Try to activate to the most-work chain (thereby connecting it).
 bool ActivateBestChain(CValidationState &state) {
     LOCK(cs_main);

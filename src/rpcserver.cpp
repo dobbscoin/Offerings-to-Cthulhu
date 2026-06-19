@@ -329,6 +329,7 @@ static const CRPCCommand vRPCCommands[] =
     { "getrollingcheckpoints",        &getrollingcheckpoints,        true,      false,      false },
     { "clearrollingcheckpoints",      &clearrollingcheckpoints,      true,      false,      false },
     { "setrollingcheckpointsenabled", &setrollingcheckpointsenabled, true,      false,      false },
+    { "invalidateblock",              &invalidateblock,              true,      false,      false },  /* STAGED — see commit, not for release */
 
     /* Mining */
     { "getblocktemplate",       &getblocktemplate,       true,      false,      false },

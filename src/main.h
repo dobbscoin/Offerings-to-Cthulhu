@@ -181,6 +181,8 @@ std::string GetWarnings(std::string strFor);
 bool GetTransaction(const uint256 &hash, CTransaction &tx, uint256 &hashBlock, bool fAllowSlow = false);
 /** Find the best known block, and make it the tip of the block chain */
 bool ActivateBestChain(CValidationState &state);
+/** Mark a block as permanently invalid (debug/maintenance RPC; STAGED, do not call during normal operation — see commit message for the audit) */
+bool InvalidateBlock(CValidationState& state, CBlockIndex *pindex);
 int64_t GetBlockValue(int nHeight, int64_t nFees);
 
 /** Restoration Hardfork v2.0.0 helpers (active at >= chainparams.RestorationForkHeight()) */

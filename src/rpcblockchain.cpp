@@ -579,3 +579,44 @@ Value setrollingcheckpointsenabled(const Array& params, bool fHelp)
     obj.push_back(Pair("enabled", Checkpoints::fRollingEnabled));
     return obj;
 }
+
+// =======================================================================
+// invalidateblock — STAGED, see commit message audit; do not enable for release
+// =======================================================================
+
+Value invalidateblock(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 1)
+        throw runtime_error(
+            "invalidateblock \"hash\"\n"
+            "\nPermanently marks a block as invalid, as if it violated a consensus rule.\n"
+            "Safe for debug/maintenance use; does not affect live consensus until the daemon\n"
+            "is restarted with the updated binary.\n"
+            "\nSTAGED: known issues — passing the genesis hash crashes the daemon; no\n"
+            "reconsiderblock companion exists to undo a mistake; bypasses rolling-checkpoints (#6).\n"
+            "\nArguments:\n"
+            "1. \"hash\"   (string, required) the hash of the block to mark as invalid\n"
+            "\nExamples:\n"
+            + HelpExampleCli("invalidateblock", "\"blockhash\"")
+            + HelpExampleRpc("invalidateblock", "\"blockhash\"")
+        );
+
+    std::string strHash = params[0].get_str();
+    uint256 hash(strHash);
+    CValidationState state;
+
+    {
+        LOCK(cs_main);
+        if (mapBlockIndex.count(hash) == 0)
+            throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Block not found");
+
+        CBlockIndex* pblockindex = mapBlockIndex[hash];
+        InvalidateBlock(state, pblockindex);
+    }
+
+    if (state.IsInvalid()) {
+        throw JSONRPCError(RPC_DATABASE_ERROR, state.GetRejectReason());
+    }
+
+    return Value::null;
+}

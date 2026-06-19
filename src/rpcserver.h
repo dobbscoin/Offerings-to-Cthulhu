@@ -190,6 +190,7 @@ extern json_spirit::Value verifychain(const json_spirit::Array& params, bool fHe
 extern json_spirit::Value getrollingcheckpoints(const json_spirit::Array& params, bool fHelp);          // in rpcblockchain.cpp
 extern json_spirit::Value clearrollingcheckpoints(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value setrollingcheckpointsenabled(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value invalidateblock(const json_spirit::Array& params, bool fHelp);                // STAGED — see commit, not for release
 
 extern json_spirit::Value getcheckpoint(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value sendcheckpoint(const json_spirit::Array& params, bool fHelp);
