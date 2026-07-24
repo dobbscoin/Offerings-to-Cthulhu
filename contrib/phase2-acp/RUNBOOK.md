@@ -69,7 +69,14 @@ sleep 5  # wait for shutdown : done
 # Restart with the broadcaster privkey. NEVER place -checkpointkey=$WIF in
 # Offerings.conf (it's globally readable). Use the command line so the WIF
 # only lives in the kernel's argv table.
-Offeringsd -checkpointkey="$WIF" -daemon
+#
+# -checkpointdepth is REQUIRED for steady-state operation: the tip-advance
+# auto-broadcast (main.cpp ProcessBlock) is gated on checkpointdepth >= 0,
+# and its default is -1 (disabled). Without it the daemon signs manual
+# sendcheckpoint calls but never auto-broadcasts, and the sync checkpoint
+# silently goes stale as the chain advances. 100 blocks matches the
+# MAX_REORG_DEPTH rationale in Step 4.
+Offeringsd -checkpointkey="$WIF" -checkpointdepth=100 -daemon
 unset WIF  # immediately scrub from the shell env
 ```
 
@@ -142,13 +149,17 @@ peer connections, daemon versions, and the broadcaster's debug.log for
 
 After first-light, the daemon takes over:
 
-- **Tip-advance auto-broadcast.** `src/main.cpp:3033` re-broadcasts a fresh
-  checkpoint each time the tip advances. No cron required for normal
-  operation.
+- **Tip-advance auto-broadcast.** `src/main.cpp` ProcessBlock re-broadcasts
+  a fresh checkpoint at tip minus `-checkpointdepth` each time a block
+  arrives from a peer. No cron required — **but only when
+  `-checkpointdepth >= 0` was supplied** (default -1 disables the
+  auto-path entirely; verified during the v2.1.0 testnet rehearsal, where
+  a broadcaster running with only `-checkpointkey` signed the manual
+  first-light checkpoint and then went silent for 590 blocks).
 - **`-checkpointkey` persistence.** The privkey lives only in the running
   process's memory and the systemd EnvironmentFile (if used). A daemon
-  restart drops it; the operator must re-supply `-checkpointkey` on every
-  restart for the broadcaster role to resume.
+  restart drops it; the operator must re-supply `-checkpointkey` (and
+  `-checkpointdepth`) on every restart for the broadcaster role to resume.
 - **Monitoring.** Watch for these log lines:
   - `SendSyncCheckpoint: hashCheckpoint=…` — broadcaster acting (expected, frequent)
   - `ProcessSyncCheckpoint: sync-checkpoint at …` — recipient accepted (expected)
