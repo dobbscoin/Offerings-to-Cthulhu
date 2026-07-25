@@ -58,7 +58,7 @@ if descent:
 desc_html = f"""<h2>The Descent &mdash; the Awakening Verses</h2>
   <table><tr><th>block</th><th>verse</th></tr>{desc_rows}</table>""" if descent else ""
 
-banner = ('<div class="awaken-banner">THE STARS ARE RIGHT &mdash; CTHULHU FHTAGN</div>'
+banner = ('<div class="awaken-banner">THE THRESHOLD HOLDS &mdash; CTHULHU FHTAGN</div>'
           if awakened else "")
 
 rows = []

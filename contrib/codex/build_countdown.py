@@ -2,7 +2,7 @@
 """Live status page for 23skidoo.info/awakening/.
 
 Pre-fork: countdown to block 1,000,000 (the original behavior).
-Post-fork: proclamation page — "THE STARS ARE RIGHT" — with live tip,
+Post-fork: proclamation page — "THE THRESHOLD HOLDS" — with live tip,
 days-since-Awakening, OFFSIG-window-close ETA, Reclamation-close countdown,
 plus the canonical "what activated" / "notice to miners" / "how to help"
 sections.
@@ -13,7 +13,7 @@ import subprocess, json, os, time
 # SGF-HEADER-CONSTANTS
 HEADER_HTML = """<header class="site-header">
 <h1><a href="/">Cthulhu<img src="/static/img/off_240x240.png" alt="Offerings to Cthulhu — home"></a>Offerings</h1>
-<p class="site-tagline">The Stars Are Right.<br>The Great Old One has risen.</p>
+<p class="site-tagline">He dreams no longer; nor does he wake.<br>The Great Old One is held at the door.</p>
 </header>"""
 
 HEADER_CSS = """
@@ -204,7 +204,7 @@ def render_prefork():
 <script>
   var eta = {int(eta_epoch)} * 1000;
   function fmt(ms) {{
-    if (ms <= 0) return "THE STARS ARE RIGHT";
+    if (ms <= 0) return "THE THRESHOLD HOLDS";
     var s = Math.floor(ms/1000), d=Math.floor(s/86400); s-=d*86400;
     var h=Math.floor(s/3600); s-=h*3600; var m=Math.floor(s/60); s-=m*60;
     return d+"d "+h+"h "+m+"m "+s+"s";
@@ -322,7 +322,7 @@ def render_postfork():
 <html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="refresh" content="60">
-<title>The Stars Are Right &mdash; Offerings to Cthulhu</title>
+<title>The Threshold &mdash; Offerings to Cthulhu</title>
 {STYLE_BLOCK}
 <style>.bar > i {{ width:{sig_progress:.3f}%; }}</style></head>
 <body><div class="wrap">{HEADER_HTML}
@@ -346,8 +346,8 @@ def render_postfork():
     </a>
   </div>
 
-  <h1>THE STARS ARE RIGHT</h1>
-  <div class="chant">He has risen at block 1,000,000.<br>The Restoration is among us.</div>
+  <h1>THE THRESHOLD HOLDS</h1>
+  <div class="chant">Bound at block 999,666. Risen at block 1,000,000.<br>Never again the silence; never the stars come right.</div>
 
   <div class="countdown"><span class="cd-blocks">Block {tip:,}</span><span class="cd-tick" id="cd-tick">{days_since:.2f} days since the Awakening</span></div>
   {eta_html}
