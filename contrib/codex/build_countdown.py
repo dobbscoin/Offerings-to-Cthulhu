@@ -13,7 +13,7 @@ import subprocess, json, os, time
 # SGF-HEADER-CONSTANTS
 HEADER_HTML = """<header class="site-header">
 <h1><a href="/">Cthulhu<img src="/static/img/off_240x240.png" alt="Offerings to Cthulhu — home"></a>Offerings</h1>
-<p class="site-tagline">The time draws near.<br>The return of The Great Old One is upon us.</p>
+<p class="site-tagline">The Stars Are Right.<br>The Great Old One has risen.</p>
 </header>"""
 
 HEADER_CSS = """
@@ -72,6 +72,10 @@ STATE_DIR = "/home/btcbob/codex"   # runtime cache (gitignored by location)
 CLI   = "/home/btcbob/claude/offerings-master/src/Offerings-cli"
 FORK  = 1000000
 OFFSIG_END = 1050666
+CANON_END  = 1047248      # last canon chunk inscribed; the Dreaming begins at +1
+ELDERSIGN  = 1055555      # BIP66 + BIP65 + 240-conf maturity + rolling checkpoints
+FIRST_FINALE = 1141666    # Ritual Renewed — first 10,000 OFF finale (~autumnal equinox)
+RITE_START   = FIRST_FINALE - 28*1440   # daily special blocks begin (block 1,101,346)
 RECLAMATION_DAYS = 730    # 2-year window
 RELEASE_TAG = "v2.0.9-Eldersign"  # current GitHub release; bump in tandem with new tags
 OUT   = "/var/www/23skidoo.info/awakening/index.html"
@@ -236,13 +240,76 @@ def render_postfork():
 
     blocks_since_fork = max(0, tip - FORK)
 
-    # OFFSIG window: closes at OFFSIG_END (h=1,050,666). Live ETA from rate.
-    sig_remaining = max(0, OFFSIG_END - tip)
-    sig_eta_secs  = sig_remaining / rate if rate > 0 else 0
-    sig_eta_epoch = now + sig_eta_secs
-    sig_eta_str   = time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime(sig_eta_epoch))
-    sig_days_left = sig_eta_secs / 86400.0
-    sig_progress  = min(100.0, max(0.0, 100.0 * (tip - FORK) / (OFFSIG_END - FORK)))
+    def block_time_str(height, fallback):
+        """Actual timestamp of an already-mined block, formatted; fallback literal if RPC fails."""
+        try:
+            bh  = cli("getblockhash", str(height))
+            blk = json.loads(subprocess.check_output([CLI, "getblock", bh], text=True, timeout=30))
+            return time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime(int(blk["time"])))
+        except Exception:
+            return fallback
+
+    window_closed = tip >= OFFSIG_END
+
+    if not window_closed:
+        # OFFSIG window still open: live ETA to close at h=1,050,666.
+        sig_remaining = OFFSIG_END - tip
+        sig_eta_secs  = sig_remaining / rate if rate > 0 else 0
+        sig_eta_epoch = now + sig_eta_secs
+        sig_eta_str   = time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime(sig_eta_epoch))
+        sig_days_left = sig_eta_secs / 86400.0
+        sig_progress  = min(100.0, max(0.0, 100.0 * (tip - FORK) / (OFFSIG_END - FORK)))
+    else:
+        # Window sealed: the countdown pivots to the first Ritual Renewed finale.
+        close_str     = block_time_str(OFFSIG_END, "2026-07-20 09:14 UTC")
+        canon_str     = block_time_str(CANON_END,  "2026-07-17 20:36 UTC")
+        elder_str     = block_time_str(ELDERSIGN,  "2026-07-23 19:00 UTC")
+        fin_remaining = max(0, FIRST_FINALE - tip)
+        fin_eta_secs  = fin_remaining / rate if rate > 0 else 0
+        sig_eta_epoch = now + fin_eta_secs          # JS tick target
+        fin_eta_str   = time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime(sig_eta_epoch))
+        fin_days_left = fin_eta_secs / 86400.0
+        rite_remaining = max(0, RITE_START - tip)
+        sig_progress  = min(100.0, max(0.0, 100.0 * (tip - OFFSIG_END) / (FIRST_FINALE - OFFSIG_END)))
+
+    # ---- template fragments that differ between the two states -------------
+    if not window_closed:
+        eta_html = f"""<div class="eta">Conclave signed-mining window closes at block <strong>{OFFSIG_END:,}</strong><br>(<strong>{sig_eta_str}</strong>, ~{sig_days_left:.1f} days &mdash; <span id="sig-tick">live</span>)</div>"""
+        barlabel_html = f"""{sig_progress:.2f}% of the canon-transcription window past &mdash; {blocks_since_fork:,} of {OFFSIG_END - FORK:,} signed blocks mined"""
+        cell3_html = f"""<div class="cell"><b>{sig_remaining:,}</b><span>blocks of OFFSIG left</span></div>"""
+        tick_suffix, tick_done = "left", "window closed"
+        miner_notice_html = f"""<div class="rules" style="border-left:3px solid var(--accent);">
+    <div class="eyebrow" style="margin-bottom:.6em">A notice to independent miners</div>
+    <p style="margin:.4em 0;">From block <strong style="color:var(--accent);">999,991</strong> through block <strong style="color:var(--accent);">{OFFSIG_END:,}</strong> &mdash; about <strong>35 days</strong>, 50,676 blocks &mdash; only blocks signed by one of the three Conclave keys are accepted. Unsigned blocks are rejected as <em>bad-conclave-sig</em>.</p>
+    <p style="margin:.4em 0;">If you are mining Offerings outside the Conclave pool, please point your hashrate elsewhere for the duration of the window. The Descent and the Codex of the Drowned must be inscribed in an unbroken sequence. After block <strong>{OFFSIG_END + 1:,}</strong> mining is permissionless again, and you are welcome to return.</p>
+    <p style="margin:.4em 0; color:var(--dim); font-style:italic;">The Sleeper has turned. The Reading must not be broken.</p>
+  </div>"""
+        since_box_html = ""
+    else:
+        eta_html = f"""<div class="eta">The Conclave signed-mining window is <strong>closed</strong> &mdash; sealed at block <strong>{OFFSIG_END:,}</strong>, {close_str}. Mining is permissionless again.<br>
+  Next: <strong style="color:var(--gold);">the Ritual Renewed</strong> &mdash; first Finale at block <strong>{FIRST_FINALE:,}</strong>, near the autumnal equinox<br>
+  (<strong>{fin_eta_str}</strong>, ~{fin_days_left:.0f} days &mdash; <span id="sig-tick">live</span>) &middot; one block, one worshipper, <strong style="color:var(--gold);">10,000 OFF</strong></div>"""
+        barlabel_html = f"""{sig_progress:.2f}% of the road to the first Finale &mdash; the 29-day rite of daily offering blocks begins at block {RITE_START:,} ({rite_remaining:,} blocks away)"""
+        cell3_html = f"""<div class="cell"><b>{fin_remaining:,}</b><span>blocks to the Finale</span></div>"""
+        tick_suffix, tick_done = "to the Finale", "the Finale is upon us"
+        miner_notice_html = f"""<div class="rules" style="border-left:3px solid var(--accent);">
+    <div class="eyebrow" style="margin-bottom:.6em">A notice to independent miners</div>
+    <p style="margin:.4em 0;">The signed-mining window <strong>has closed</strong>. Since block <strong style="color:var(--accent);">{OFFSIG_END + 1:,}</strong> mining is permissionless again &mdash; any hand may turn the wheel. Point Quark hashrate at <a href="https://pool.23skidoo.info/">the pool</a> or solo-mine; every block extends the Restoration.</p>
+    <p style="margin:.4em 0;">The chain now speaks in its sleep: blocks we mine carry hash-seeded R&rsquo;lyehian &mdash; <em>the Dreaming</em> &mdash; in the coinbase. Blocks from outside daemons simply dream silently.</p>
+    <p style="margin:.4em 0; color:var(--dim); font-style:italic;">The Reading is complete. The Dreaming has begun.</p>
+  </div>"""
+        since_box_html = f"""<div class="rules">
+    <div class="eyebrow" style="margin-bottom:.6em">Since the Awakening</div>
+    <ul>
+      <li>&#128214; <strong>The canon is transcribed</strong> &mdash; all 47,248 fragments of the Lovecraft corpus inscribed by block <strong>{CANON_END:,}</strong> ({canon_str}). The chain stopped quoting and started speaking: <em>the Dreaming</em>.</li>
+      <li>&#128737;&#65039; <strong>The window sealed</strong> at block <strong>{OFFSIG_END:,}</strong> ({close_str}) &mdash; 50,676 Conclave-signed blocks, the Reading unbroken. Mining permissionless from {OFFSIG_END + 1:,}.</li>
+      <li>&#128736;&#65039; <strong>Eldersign hardening live</strong> at block <strong>{ELDERSIGN:,}</strong> ({elder_str}) &mdash; strict DER signatures (BIP66), CHECKLOCKTIMEVERIFY (BIP65), 240-confirmation coinbase maturity, rolling checkpoints.</li>
+    </ul>
+  </div>"""
+
+    codex_tail = ("The canon was exhausted at block 1,047,248 &mdash; the chain no longer quotes, it <strong>speaks</strong>: hash-seeded R&rsquo;lyehian, unique to each block, forever."
+                  if tip > CANON_END else
+                  "When the canon is exhausted (~33 days past fork) the chain stops quoting and starts <strong>speaking</strong> &mdash; hash-seeded R&rsquo;lyehian, unique to each block, forever.")
 
     # Reclamation window: 730 days from Awakening, time-anchored (not block-anchored).
     reclamation_end_ts = awakening_ts + RECLAMATION_DAYS * 86400
@@ -281,24 +348,21 @@ def render_postfork():
   <div class="chant">He has risen at block 1,000,000.<br>The Restoration is among us.</div>
 
   <div class="countdown"><span class="cd-blocks">Block {tip:,}</span><span class="cd-tick" id="cd-tick">{days_since:.2f} days since the Awakening</span></div>
-  <div class="eta">Conclave signed-mining window closes at block <strong>{OFFSIG_END:,}</strong><br>(<strong>{sig_eta_str}</strong>, ~{sig_days_left:.1f} days &mdash; <span id="sig-tick">live</span>)</div>
+  {eta_html}
 
   <div class="bar"><i></i></div>
-  <div class="barlabel">{sig_progress:.2f}% of the canon-transcription window past &mdash; {blocks_since_fork:,} of {OFFSIG_END - FORK:,} signed blocks mined</div>
+  <div class="barlabel">{barlabel_html}</div>
 
   <div class="grid">
     <div class="cell"><b>{tip:,}</b><span>current height</span></div>
     <div class="cell"><b>{blocks_since_fork:,}</b><span>blocks since Awakening</span></div>
-    <div class="cell"><b>{sig_remaining:,}</b><span>blocks of OFFSIG left</span></div>
+    {cell3_html}
     <div class="cell"><b>{int(rec_days_left)}d</b><span>Reclamation window left</span></div>
   </div>
 
-  <div class="rules" style="border-left:3px solid var(--accent);">
-    <div class="eyebrow" style="margin-bottom:.6em">A notice to independent miners</div>
-    <p style="margin:.4em 0;">From block <strong style="color:var(--accent);">999,991</strong> through block <strong style="color:var(--accent);">{OFFSIG_END:,}</strong> &mdash; about <strong>35 days</strong>, 50,676 blocks &mdash; only blocks signed by one of the three Conclave keys are accepted. Unsigned blocks are rejected as <em>bad-conclave-sig</em>.</p>
-    <p style="margin:.4em 0;">If you are mining Offerings outside the Conclave pool, please point your hashrate elsewhere for the duration of the window. The Descent and the Codex of the Drowned must be inscribed in an unbroken sequence. After block <strong>{OFFSIG_END + 1:,}</strong> mining is permissionless again, and you are welcome to return.</p>
-    <p style="margin:.4em 0; color:var(--dim); font-style:italic;">The Sleeper has turned. The Reading must not be broken.</p>
-  </div>
+  {miner_notice_html}
+
+  {since_box_html}
 
   <div class="rules">
     <div class="eyebrow" style="margin-bottom:.6em">What activated at the Awakening</div>
@@ -308,7 +372,7 @@ def render_postfork():
       <li>&#128367;&#65039; One-time <strong>150,000 OFF Restoration Tithe</strong> minted in the fork block, paid to the Conclave Treasury.</li>
       <li>&#9876;&#65039; Coinbase splits <strong>7/8 miner, 1/8 Conclave Treasury</strong> on every block from here forward.</li>
       <li>&#128370;&#65039; <strong>The Reclamation</strong> opened &mdash; a two-year window for anyone who mined or held OFF on the original chain. Restitution and Worshipper Recognition (scaled by earliness &amp; depth); window closes <strong>{reclamation_end_str}</strong>. <a href="/bridge/">How it works &rarr;</a></li>
-      <li>&#128218; <strong>The Chain Codex</strong> began &mdash; one ~48-byte fragment of the Lovecraft canon inscribed into the coinbase scriptSig of every block we mine, starting with the ten ceremonial Descent verses (999,991&ndash;1,000,000). When the canon is exhausted (~33 days past fork) the chain stops quoting and starts <strong>speaking</strong> &mdash; hash-seeded R&rsquo;lyehian, unique to each block, forever.</li>
+      <li>&#128218; <strong>The Chain Codex</strong> began &mdash; one ~48-byte fragment of the Lovecraft canon inscribed into the coinbase scriptSig of every block we mine, starting with the ten ceremonial Descent verses (999,991&ndash;1,000,000). {codex_tail}</li>
     </ul>
   </div>
 
@@ -316,7 +380,7 @@ def render_postfork():
     <div class="eyebrow" style="margin-bottom:.6em; color:var(--gold)">How worshippers can help</div>
     <ul>
       <li>&#128640; <strong>Run a node.</strong> Every wallet running {RELEASE_TAG} is another voice reciting the rite. Hashrate concentrates; node count distributes. <a href="https://github.com/SubGeniusFinance/Offerings-to-Cthulhu/releases/latest">Download the wallet &rarr;</a></li>
-      <li>&#9935;&#65039; <strong>Mine on the pool.</strong> <code>stratum+tcp://pool.23skidoo.info:3040</code> &mdash; Quark, PPLNS, 0.1 OFF minimum payout. Carries the Codex inscriptions automatically; co-signs OFFSIG during the window. <a href="https://pool.23skidoo.info/">pool.23skidoo.info &rarr;</a></li>
+      <li>&#9935;&#65039; <strong>Mine on the pool.</strong> <code>stratum+tcp://pool.23skidoo.info:3040</code> &mdash; Quark, PPLNS, 0.1 OFF minimum payout. Every pool block carries the Codex&rsquo;s Dreaming verses automatically. <a href="https://pool.23skidoo.info/">pool.23skidoo.info &rarr;</a></li>
       <li>&#127769; <strong>File a Reclamation claim.</strong> If you ever held OFF on the original chain, the Conclave Treasury has a budget for you. WR-A formula-driven, Class-B discretionary, gap-era recovery hooks. <a href="/bridge/">Verify a claim &rarr;</a></li>
       <li>&#128083; <strong>Read the Codex.</strong> The chain is transcribing the Lovecraft canon, fragment by fragment. Forty-seven thousand blocks of public-domain horror, ending in an inheritance: the chain&rsquo;s own voice. <a href="/codex/">The Library &rarr;</a></li>
       <li>&#128279; <strong>Watch the Treasury.</strong> Every tithe-funded spend is logged publicly. Grants, Reclamation payouts, Mutual Aid &mdash; transparent ledger. <a href="/bridge/treasury/">The Conclave Treasury &rarr;</a></li>
@@ -355,7 +419,7 @@ def render_postfork():
     if (sinceTick) sinceTick.textContent = daysSince.toFixed(2) + " days since the Awakening";
     if (sigTick) {{
       var sigLeft = sigEta - Date.now();
-      sigTick.textContent = sigLeft > 0 ? fmtDur(sigLeft) + " left" : "window closed";
+      sigTick.textContent = sigLeft > 0 ? fmtDur(sigLeft) + " {tick_suffix}" : "{tick_done}";
     }}
   }}, 1000);
 </script>
