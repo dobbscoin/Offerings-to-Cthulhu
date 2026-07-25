@@ -286,9 +286,11 @@ def render_postfork():
   </div>"""
         since_box_html = ""
     else:
-        eta_html = f"""<div class="eta">The Conclave signed-mining window is <strong>closed</strong> &mdash; sealed at block <strong>{OFFSIG_END:,}</strong>, {close_str}. Mining is permissionless again.<br>
-  Next: <strong style="color:var(--gold);">the Ritual Renewed</strong> &mdash; first Finale at block <strong>{FIRST_FINALE:,}</strong>, near the autumnal equinox<br>
-  (<strong>{fin_eta_str}</strong>, ~{fin_days_left:.0f} days &mdash; <span id="sig-tick">live</span>) &middot; one block, one worshipper, <strong style="color:var(--gold);">10,000 OFF</strong></div>"""
+        eta_html = f"""<div class="eta">The Conclave signed-mining window has closed, sealed at block <strong>{OFFSIG_END:,}</strong><br>
+  Mining is permissionless again.<br>
+  Next: <strong style="color:var(--gold);">the Ritual Renewed</strong>: First 'Great Ritual Finale' at block <strong>{FIRST_FINALE:,}</strong><br>
+  (<strong>{fin_eta_str}</strong>, ~{fin_days_left:.0f} days &mdash; <span id="sig-tick">live</span>)<br>
+  &middot; One block, One worshipper, <strong style="color:var(--gold);">10,000 (OFF)</strong> &middot;</div>"""
         barlabel_html = f"""{sig_progress:.2f}% of the road to the first Finale &mdash; the 29-day rite of daily offering blocks begins at block {RITE_START:,} ({rite_remaining:,} blocks away)"""
         cell3_html = f"""<div class="cell"><b>{fin_remaining:,}</b><span>blocks to the Finale</span></div>"""
         tick_suffix, tick_done = "to the Finale", "the Finale is upon us"
