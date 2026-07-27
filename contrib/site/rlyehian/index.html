@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Tongue of R'lyeh &mdash; R'lyehian Translator | Offerings to Cthulhu</title>
+<meta name="description" content="A truthful R'lyehian (Cthuvian) translator: every word glossed with all its senses, sourced from the fan glossary, the LingoJam tables, and the 32 words the OFF chain itself speaks.">
+<link rel="shortcut icon" type="image/png" href="/static/img/favicon.png">
+<style>
+  :root { --ink:#9fe8c9; --dim:#5fffd0; --panel:#0a1014; --accent:#5fd0a0; --bg:#05080a; --orange:#5fffd0; --gold:#FFD700; }
+  * { box-sizing: border-box; }
+  html { background-color:#05080a; }
+  body { margin:0; background:transparent !important;
+    color:var(--ink); font-family:"Iowan Old Style","Palatino Linotype",Georgia,serif; line-height:1.7; }
+  .off-bg { position:fixed; inset:0; z-index:-1;
+    background: linear-gradient(rgba(5,8,10,0.70), rgba(5,8,10,0.88)),
+                url("/static/img/cthulhu-bg.jpg") center / cover no-repeat;
+    transform:translateZ(0); will-change:transform; pointer-events:none; }
+  .wrap { max-width:880px; margin:0 auto; padding:32px 24px 96px; }
+
+  header { text-align:center; margin-bottom:1em; }
+  header h1 { font-size:2.6rem; letter-spacing:.04em; margin:0; font-weight:normal;
+    text-shadow:0 0 22px rgba(95,208,160,.4); }
+  header h1 a{color:inherit;text-decoration:none;border:none;display:inline-block}
+  header h1 img { vertical-align:middle; max-width:200px; height:auto; margin:0 .35em;
+    filter:drop-shadow(0 0 18px rgba(95,208,160,.25)); }
+  @media (max-width:640px){header h1{font-size:1.5rem}header h1 img{max-width:80px!important;margin:0 .25em}.claim{font-size:.88rem;padding:.7em 0;margin:1.4em 0}.wrap{padding:20px 14px 60px}}
+
+  .nav { display:flex; justify-content:center; gap:5px; flex-wrap:nowrap; margin:.6em auto 1.2em; padding:0 .4em; max-width:880px; }
+  .nav .btn { display:inline-block; padding:5px 10px;
+    background:linear-gradient(to bottom,#5a3e00 0%,#a07710 16%,#ffd700 50%,#a07710 84%,#5a3e00 100%);
+    color:#1a1100; font-family:"Trebuchet MS","Segoe UI",Tahoma,sans-serif;
+    font-weight:900; font-size:.72rem; letter-spacing:.03em; text-transform:uppercase; text-decoration:none;
+    border:1px solid rgba(120,80,0,.85); border-radius:4px; text-shadow:0 0 1px rgba(0,0,0,.55);
+    box-shadow:inset 0 1px 0 rgba(255,238,160,.55),inset 0 -1px 0 rgba(60,40,0,.55),0 2px 4px rgba(0,0,0,.55),0 0 14px rgba(255,215,0,.18);
+    transition:filter .15s, box-shadow .15s, transform .1s; }
+  .nav .btn:visited { color:#1a1100; }
+  .nav .btn:hover { filter:brightness(1.08) saturate(1.1);
+    box-shadow:inset 0 1px 0 rgba(255,245,180,.7),inset 0 -1px 0 rgba(60,40,0,.5),0 2px 4px rgba(0,0,0,.45),0 0 22px rgba(255,215,0,.4); }
+  @media (max-width:640px){ .nav{gap:4px;margin:.4em auto 1em;flex-wrap:wrap} .nav .btn{font-size:.7rem;padding:6px 9px} }
+
+  .claim { text-align:center; font-style:italic; color:var(--orange);
+    border-top:1px solid #16302a; border-bottom:1px solid #16302a;
+    padding:1.1em 0; margin:2.2em 0; letter-spacing:.04em; }
+  .claim.tagline-top { color:var(--gold) !important; }
+  .claim small { display:block; color:var(--orange); font-size:.78rem; margin-top:.45em; font-style:normal; opacity:.85; }
+
+  h2 { font-size:1.05rem; text-transform:uppercase; letter-spacing:.22em; color:var(--orange);
+    border-bottom:1px solid #16302a; padding-bottom:.6em; margin-top:3em; }
+  .section-sub { text-align:center; color:var(--orange); font-style:italic; margin-top:-.4em; font-size:.95rem; }
+
+  /* translator */
+  .dirsel { display:flex; gap:10px; justify-content:center; margin:1.6em 0 1em; flex-wrap:wrap; }
+  .dirbtn { padding:9px 18px; background:var(--panel); border:1px solid #16302a; border-radius:8px;
+    color:var(--ink); font-family:inherit; font-size:.95rem; cursor:pointer; letter-spacing:.04em;
+    transition:border-color .2s, box-shadow .2s; }
+  .dirbtn.active { border-color:var(--accent); color:var(--accent);
+    box-shadow:0 0 22px rgba(95,208,160,.18); text-shadow:0 0 12px rgba(95,208,160,.35); }
+  .dirbtn:hover { border-color:var(--accent); }
+
+  textarea { width:100%; min-height:110px; background:var(--panel); border:1px solid #16302a;
+    border-left:3px solid var(--accent); border-radius:8px; color:var(--ink);
+    font-family:inherit; font-size:1.12rem; line-height:1.6; padding:16px 18px; resize:vertical; }
+  textarea:focus { outline:none; border-color:var(--accent); box-shadow:0 0 26px rgba(95,208,160,.12); }
+
+  .quick { display:flex; gap:8px; flex-wrap:wrap; margin:.7em 0 0; }
+  .quick button { background:none; border:1px dotted var(--accent); border-radius:6px; color:var(--accent);
+    font-family:inherit; font-size:.82rem; padding:4px 10px; cursor:pointer; font-style:italic; }
+  .quick button:hover { background:rgba(95,208,160,.08); }
+
+  .outbox { background:var(--panel); border:1px solid #16302a; border-left:3px solid var(--accent);
+    border-radius:8px; padding:20px 22px; font-size:1.18rem; margin-top:1.2em; min-height:3em;
+    box-shadow:0 0 60px rgba(0,0,0,.6) inset; white-space:pre-wrap; }
+  .outbox .placeholder { color:#3d6b58; font-style:italic; font-size:.95rem; }
+  .outbox .unkw { border-bottom:1px dashed #b05f5f; color:#d8a0a0; }
+
+  /* interlinear */
+  .inter { display:flex; flex-wrap:wrap; gap:6px; margin-top:1.1em; }
+  .cell { background:var(--panel); border:1px solid #16302a; border-radius:6px; padding:7px 10px 6px;
+    cursor:pointer; max-width:100%; transition:border-color .15s; }
+  .cell:hover { border-color:var(--accent); }
+  .cell.sel { border-color:var(--gold); }
+  .cell .src { display:block; color:var(--accent); font-size:1.02rem; }
+  .cell .glo { display:block; color:var(--ink); font-size:.8rem; opacity:.9; max-width:22ch;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .cell.unk .src { color:#d8a0a0; }
+  .cell.unk .glo { color:#b05f5f; font-style:italic; }
+  .badges { display:inline-flex; gap:3px; margin-left:.3em; vertical-align:middle; }
+  .bdg { font-size:.6rem; font-family:monospace; border-radius:3px; padding:0 4px; letter-spacing:0;
+    border:1px solid; line-height:1.5; }
+  .bdg.g  { color:#9fe8c9; border-color:#2a5c4a; }
+  .bdg.lj { color:#c9b37e; border-color:#5c522a; }
+  .bdg.ch { color:var(--gold); border-color:#5c4d1a; }
+  .bdg.d  { color:#a8b8e8; border-color:#2a3a5c; }
+  .bdg.mo { color:#d8a0d8; border-color:#4c2a5c; }
+  .bdg.un { color:#d8a0a0; border-color:#5c2a2a; }
+
+  .detail { background:var(--panel); border:1px solid #2a5c4a; border-radius:8px; padding:14px 18px;
+    margin-top:.9em; font-size:.94rem; display:none; }
+  .detail.show { display:block; }
+  .detail b { color:var(--accent); font-weight:normal; font-size:1.1rem; }
+  .detail .srow { margin:.35em 0; padding-left:.2em; }
+  .detail .from { display:inline-block; min-width:7.5em; color:var(--dim); font-size:.78rem;
+    text-transform:uppercase; letter-spacing:.1em; }
+  .detail .note { color:var(--orange); font-style:italic; font-size:.85rem; margin-top:.5em; }
+
+  .legend { font-size:.8rem; color:var(--dim); margin-top:1.1em; line-height:2; }
+  .legend .bdg { font-size:.66rem; }
+
+  /* reference tables */
+  table.ref { width:100%; border-collapse:collapse; font-size:.92rem; margin:1.2em 0; }
+  table.ref th { text-align:left; color:var(--dim); text-transform:uppercase; font-size:.72rem;
+    letter-spacing:.14em; padding:6px 10px; border-bottom:1px solid #16302a; font-weight:normal; }
+  table.ref td { padding:6px 10px; border-bottom:1px solid #0f1d1a; vertical-align:top; }
+  table.ref td:first-child { color:var(--accent); white-space:nowrap; }
+  table.ref td.typ { color:var(--dim); font-size:.8rem; font-style:italic; white-space:nowrap; }
+
+  .chips { display:flex; flex-wrap:wrap; gap:7px; margin:1.2em 0; }
+  .chip { background:var(--panel); border:1px solid #2a5c4a; border-radius:999px; padding:4px 13px;
+    color:var(--accent); font-size:.95rem; cursor:default; }
+  .chip:hover { border-color:var(--gold); }
+
+  .lore p { margin:1em 0; }
+  .lore em { color:var(--accent); font-style:italic; }
+  .lore a { color:var(--accent); text-decoration:none; border-bottom:1px dotted var(--accent); }
+  .lore table.ref td:first-child { white-space:normal; }
+
+  /* glossary: collapsed, filterable, multi-column */
+  details.glossbox { background:var(--panel); border:1px solid #16302a; border-radius:10px;
+    padding:0; margin:1.4em 0; }
+  details.glossbox summary { cursor:pointer; padding:14px 20px; color:var(--accent);
+    font-style:italic; letter-spacing:.04em; list-style:none; transition:text-shadow .2s; }
+  details.glossbox summary::-webkit-details-marker { display:none; }
+  details.glossbox summary::before { content:"\2726  "; color:var(--dim); font-style:normal; }
+  details.glossbox[open] summary::before { content:"\2727  "; }
+  details.glossbox summary:hover { text-shadow:0 0 14px rgba(95,208,160,.5); }
+  details.glossbox .gbody { padding:4px 20px 18px; border-top:1px solid #16302a; }
+  .gfilter { width:100%; background:var(--bg); border:1px solid #16302a; border-radius:6px;
+    color:var(--ink); font-family:inherit; font-size:.95rem; padding:8px 12px; margin:12px 0 14px; }
+  .gfilter:focus { outline:none; border-color:var(--accent); }
+  .gloss-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr));
+    gap:2px 22px; font-size:.9rem; }
+  .gcell { padding:4px 2px; border-bottom:1px solid #0f1d1a; line-height:1.45; }
+  .gcell .gt { color:var(--accent); }
+  .gcell .gy { color:var(--dim); font-size:.72rem; font-style:italic; }
+  .gcell .gm { color:var(--ink); opacity:.9; }
+  .gnone { color:#3d6b58; font-style:italic; padding:.5em 0; }
+
+  footer { text-align:center; color:var(--accent); font-size:.82rem; margin-top:4em; padding-top:2.2em;
+    border-top:1px solid #16302a; line-height:1.9; max-width:720px; margin-left:auto; margin-right:auto; }
+  footer a { color:var(--accent); text-decoration:none; border:none; }
+  footer p { margin:.35em 0; }
+  footer p:last-child { color:var(--orange); }
+  ul.off-socials { position:fixed; bottom:14px; right:14px; z-index:25; display:flex; gap:10px;
+    list-style:none; padding:0; margin:0; align-items:center; }
+  ul.off-socials li { margin:0; padding:0; }
+  ul.off-socials a { display:inline-flex; width:32px; height:32px; align-items:center; justify-content:center;
+    border-radius:50%; background:rgba(20,20,20,.85); border:0 !important; text-decoration:none;
+    transition:transform .15s, background .15s; }
+  ul.off-socials a:hover { transform:translateY(-2px); background:rgba(40,40,40,.95); }
+  ul.off-socials img { width:18px; height:18px; display:block; border-radius:50%; }
+</style>
+</head>
+<body>
+<div class="off-bg" aria-hidden="true"></div>
+<div class="wrap">
+
+<header>
+<h1><a href="/">Cthulhu<img src="/static/img/off_240x240.png" alt="Offerings to Cthulhu &mdash; home"></a>Offerings</h1>
+<nav class="nav">
+  <a class="btn" href="/">HOME</a>
+  <a class="btn" href="https://explorer.23skidoo.info/" target="_blank" rel="noopener">BLOCK EXPLORER</a>
+  <a class="btn" href="https://pool.23skidoo.info/" target="_blank" rel="noopener">MINING POOL</a>
+  <a class="btn" href="/codex/">THE CODEX</a>
+  <a class="btn" href="https://github.com/SubGeniusFinance/Offerings-to-Cthulhu" target="_blank" rel="noopener">GITHUB SOURCE</a>
+</nav>
+</header>
+
+<div class="claim tagline-top">
+The Tongue of R'lyeh
+<small>Every word glossed. Every source named. No sense silently discarded.</small>
+</div>
+
+<div class="dirsel" role="tablist">
+  <button class="dirbtn active" id="btn-enc" onclick="setDir('enc')">English &rarr; R'lyehian</button>
+  <button class="dirbtn" id="btn-dec" onclick="setDir('dec')">R'lyehian &rarr; English</button>
+</div>
+
+<textarea id="inp" spellcheck="false" placeholder="Speak, and the deep shall answer&hellip;"></textarea>
+<div class="quick" id="quick"></div>
+
+<div class="outbox" id="out"><span class="placeholder">The translation surfaces here as you type&hellip;</span></div>
+
+<div class="inter" id="inter"></div>
+<div class="detail" id="detail"></div>
+
+<div class="legend">
+  <span class="bdg g">G</span> fan glossary (the scholarly senses) &nbsp;
+  <span class="bdg lj">LJ</span> LingoJam table (what the community decoder says) &nbsp;
+  <span class="bdg d">D</span> derived / canon compound &nbsp;
+  <span class="bdg ch">&#9875;</span> spoken by the chain itself (miner.cpp Dreaming lexicon) &nbsp;
+  <span class="bdg mo">?</span> affix guess &nbsp;
+  <span class="bdg un">&mdash;</span> unknown, left untouched &nbsp;&mdash; click any word for its full entry
+</div>
+
+<section class="lore">
+<h2>Why This Translator</h2>
+<p>Three vocabularies of R'lyehian exist, and they do not agree.</p>
+<table class="ref">
+<tr><th>Source</th><th>What it is</th><th>How we use it</th></tr>
+<tr><td>The fan glossary</td><td>"R'lyehian as a Toy Language" &mdash; the scholarly reconstruction assembled on alt.horror.cthulhu and the Yog-Sothoth forums from Lovecraft's own fragments and his heirs'</td><td>Primary meanings. Multi-sense glosses shown in full</td></tr>
+<tr><td>The LingoJam tables</td><td>The community's habitual decoder. It flattened the glossary: each word decodes only to the <em>first</em> gloss in its table, and missing words are silently mangled</td><td>Shown alongside, labeled, so you know what others will read</td></tr>
+<tr><td>The chain lexicon</td><td>The 32 words of <em>miner.cpp</em> &mdash; the only words the OFF chain itself speaks in its post-canon Dreaming blocks</td><td>Marked with the anchor <span class="bdg ch">&#9875;</span> wherever they surface</td></tr>
+</table>
+<p><em>fhtagn</em> means <em>wait</em>, and <em>sleep</em>, and <em>dream</em> &mdash; the Old Ones experience these as one condition, and a translator that keeps only the first has already lied to you. Words we cannot source are left standing, marked, untranslated: better an honest gap than confident nonsense. Verbs have only present and not-present tense; taken out of context, any fragment's translation is guesswork &mdash; this page shows you the guesswork instead of hiding it.</p>
+</section>
+
+<section class="lore">
+<h2>The Words the Chain Speaks</h2>
+<p class="section-sub">Since the canon was read in full, every Dreaming block inscribes verses drawn from these 32 words alone</p>
+<div class="chips" id="chainchips"></div>
+</section>
+
+<section class="lore">
+<h2>The Glossary</h2>
+<p class="section-sub">The full fan reconstruction, with canon compounds derived by its own morphology</p>
+<details class="glossbox">
+<summary id="glosssummary">Unfurl the glossary</summary>
+<div class="gbody">
+<input type="search" class="gfilter" id="gfilter" placeholder="Sift the entries &mdash; by word or by meaning&hellip;" spellcheck="false">
+<div class="gloss-grid" id="glossgrid"></div>
+<div class="gnone" id="glossnone" style="display:none">Nothing in the glossary answers to that.</div>
+</div>
+</details>
+</section>
+
+<footer class="site-foot">
+<p>&copy; 2026 <a href="https://subgenius.finance/">SubGenius.Finance</a></p>
+<p><a href="https://subgenius.finance/">SubGenius.Finance</a>: Where Sub-Culture Becomes Capital</p>
+<p class="off-chant">ph&rsquo;nglui mglw&rsquo;nafh Cthulhu R&rsquo;lyeh wgah&rsquo;nagl fhtagn &middot; Praise Cthulhu</p>
+</footer>
+
+<ul class="off-socials" aria-label="Offerings to Cthulhu community links">
+<li><a href="https://23skidoo.info/" target="_blank" rel="noopener" aria-label="Offerings to Cthulhu"><img src="https://23skidoo.info/static/img/off_240x240.png" alt="Offerings to Cthulhu"></a></li>
+<li><a href="https://pool.23skidoo.info/" target="_blank" rel="noopener" aria-label="OFF Mining Pool"><img src="https://api.iconify.design/mdi/pickaxe.svg?color=%235fffd0" alt="Pool"></a></li>
+<li><a href="https://explorer.23skidoo.info/" target="_blank" rel="noopener" aria-label="Block Explorer"><img src="https://api.iconify.design/mdi/cube-scan.svg?color=%235fffd0" alt="Block Explorer"></a></li>
+<li><a href="https://23skidoo.info/codex/" target="_blank" rel="noopener" aria-label="The Codex"><img src="https://cdn.simpleicons.org/bookstack/5fffd0" alt="Codex"></a></li>
+<li><a href="https://github.com/SubGeniusFinance/Offerings-to-Cthulhu" target="_blank" rel="noopener" aria-label="GitHub"><img src="https://cdn.simpleicons.org/github/5fffd0" alt="GitHub"></a></li>
+</ul>
+
+</div>
+<script src="lexicon.js"></script>
+<script src="translate.js"></script>
+<script>
+(function () {
+  "use strict";
+  var dir = "enc";
+  var inp = document.getElementById("inp");
+  var out = document.getElementById("out");
+  var inter = document.getElementById("inter");
+  var detail = document.getElementById("detail");
+  var lastSegs = [];
+  var selCell = null;
+
+  var QUICK = {
+    dec: [
+      ["The Chant", "Ph'nglui mglw'nafh Cthulhu R'lyeh wgah'nagl fhtagn"],
+      ["Iä! Iä!", "Ia! Ia! Cthulhu fhtagn!"],
+      ["The Vesper", "Vulgtmoth n'ghftyar, gnaiih. Mghlirgh gof'nn nnn, syha'h. Nog ephaii, yogfm'll; nog ephaii, ahair'luh. Y'hah."],
+      ["A Dreaming block", "Syha'h gof'nn vulgtlagln R'lyeh ng fhtagn"]
+    ],
+    enc: [
+      ["The famous line", "In his house at R'lyeh dead Cthulhu dreams"],
+      ["A prayer", "We pray to the Great Old One and wait, always"],
+      ["A warning", "The stars come right and the sleeper wakes"]
+    ]
+  };
+
+  function esc(s) {
+    return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  window.setDir = function (d) {
+    dir = d;
+    document.getElementById("btn-dec").className = "dirbtn" + (d === "dec" ? " active" : "");
+    document.getElementById("btn-enc").className = "dirbtn" + (d === "enc" ? " active" : "");
+    inp.placeholder = d === "dec"
+      ? "Ph'nglui mglw'nafh Cthulhu R'lyeh wgah'nagl fhtagn…"
+      : "Speak, and the deep shall answer…";
+    renderQuick();
+    run();
+  };
+
+  function renderQuick() {
+    var q = document.getElementById("quick");
+    q.innerHTML = "";
+    QUICK[dir].forEach(function (pair) {
+      var b = document.createElement("button");
+      b.textContent = pair[0];
+      b.onclick = function () { inp.value = pair[1]; run(); inp.focus(); };
+      q.appendChild(b);
+    });
+  }
+
+  function badgeFor(seg) {
+    var b = "";
+    if (seg.prov === "G") b += '<span class="bdg g">G</span>';
+    else if (seg.prov === "LJ" || seg.prov === "LJ-phrase") b += '<span class="bdg lj">LJ</span>';
+    else if (seg.prov === "D" || seg.prov === "canon") b += '<span class="bdg d">D</span>';
+    if (seg.kind === "morph") b += '<span class="bdg mo">?</span>';
+    if (seg.kind === "unk") b += '<span class="bdg un">&mdash;</span>';
+    if (seg.chain) b += '<span class="bdg ch">&#9875;</span>';
+    return b;
+  }
+
+  function run() {
+    var text = inp.value;
+    closeDetail();
+    if (!text.trim()) {
+      out.innerHTML = '<span class="placeholder">The translation surfaces here as you type…</span>';
+      inter.innerHTML = "";
+      lastSegs = [];
+      return;
+    }
+    var r = dir === "dec" ? Rlyehian.decode(text) : Rlyehian.encode(text);
+    lastSegs = r.segments;
+    var html = "";
+    r.segments.forEach(function (seg, i) {
+      var cls = seg.kind === "unk" ? "unkw" : "";
+      html += (i === 0 ? "" : " ") + (cls ? '<span class="' + cls + '">' + esc(seg.out) + "</span>" : esc(seg.out));
+    });
+    out.innerHTML = html || esc(r.text);
+    inter.innerHTML = "";
+    r.segments.forEach(function (seg, i) {
+      var c = document.createElement("div");
+      c.className = "cell" + (seg.kind === "unk" ? " unk" : "");
+      c.innerHTML = '<span class="src">' + esc(seg.src) + badgeFor(seg) + "</span>" +
+                    '<span class="glo">' + esc(seg.out) + "</span>";
+      c.onclick = function () { showDetail(seg, c); };
+      inter.appendChild(c);
+    });
+  }
+
+  function fromLabel(f) {
+    return { glossary: "fan glossary", lingojam: "LingoJam", derived: "derived", canon: "canon" }[f] || f;
+  }
+
+  function showDetail(seg, cell) {
+    if (selCell) selCell.classList.remove("sel");
+    selCell = cell;
+    cell.classList.add("sel");
+    var h = "<b>" + esc(seg.src) + "</b> " + badgeFor(seg);
+    if (seg.kind === "phrase") {
+      h += '<div class="srow"><span class="from">whole phrase</span>' +
+           seg.senses.map(esc).join(" &nbsp;/&nbsp; ") + "</div>";
+    } else if (seg.senses.length) {
+      seg.senses.forEach(function (s) {
+        h += '<div class="srow"><span class="from">' + esc(fromLabel(s.from)) + "</span>" + esc(s.s) + "</div>";
+      });
+    } else if (seg.kind === "unk") {
+      h += '<div class="srow">Not found in the fan glossary, the LingoJam tables, or the chain lexicon. ' +
+           "It passes through untranslated — an honest gap.</div>";
+    }
+    if (seg.note) h += '<div class="note">' + esc(seg.note) + "</div>";
+    if (seg.chain) h += '<div class="note">One of the 32 words the chain itself speaks in Dreaming blocks.</div>';
+    detail.innerHTML = h;
+    detail.className = "detail show";
+  }
+
+  function closeDetail() {
+    if (selCell) selCell.classList.remove("sel");
+    selCell = null;
+    detail.className = "detail";
+    detail.innerHTML = "";
+  }
+
+  // chain chips
+  var chips = document.getElementById("chainchips");
+  LEX.chainDisplay.forEach(function (w) {
+    var g = LEX.gloss[w.toLowerCase()];
+    var c = document.createElement("span");
+    c.className = "chip";
+    c.textContent = w;
+    if (g) c.title = g.m;
+    chips.appendChild(c);
+  });
+
+  // glossary: compact filterable grid, glossary rows first, then
+  // derived/proper compounds. Dedupe the bare-apostrophe aliases.
+  var grid = document.getElementById("glossgrid");
+  var rows = [];
+  var seen = {};
+  Object.keys(LEX.gloss).forEach(function (k) {
+    var g = LEX.gloss[k];
+    if (seen[g.term]) return;
+    seen[g.term] = true;
+    rows.push(g);
+  });
+  var order = { word: 0, prefix: 0, suffix: 0, conjunction: 0, derived: 1, proper: 2 };
+  rows.sort(function (a, b) {
+    var d = (order[a.t] || 0) - (order[b.t] || 0);
+    if (d) return d;
+    return a.term.replace(/^[-']/, "").toLowerCase() < b.term.replace(/^[-']/, "").toLowerCase() ? -1 : 1;
+  });
+  var cells = rows.map(function (g) {
+    var c = document.createElement("div");
+    c.className = "gcell";
+    var ty = g.t === "word" ? "" : ' <span class="gy">' + esc(g.t) + "</span>";
+    c.innerHTML = '<span class="gt">' + esc(g.term) + "</span>" + ty +
+                  ' <span class="gm">&mdash; ' + esc(g.m) + "</span>";
+    c.dataset.hay = (g.term + " " + g.t + " " + g.m).toLowerCase();
+    grid.appendChild(c);
+    return c;
+  });
+  document.getElementById("glosssummary").textContent =
+    "Unfurl the glossary — " + rows.length + " entries";
+  document.getElementById("gfilter").addEventListener("input", function () {
+    var q = this.value.trim().toLowerCase().replace(/[‘’ʼ`]/g, "'");
+    var shown = 0;
+    cells.forEach(function (c) {
+      var hit = !q || c.dataset.hay.indexOf(q) !== -1;
+      c.style.display = hit ? "" : "none";
+      if (hit) shown++;
+    });
+    document.getElementById("glossnone").style.display = shown ? "none" : "";
+  });
+
+  inp.addEventListener("input", run);
+  renderQuick();
+})();
+</script>
+</body>
+</html>
