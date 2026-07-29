@@ -12,7 +12,7 @@ TTS_MANIFEST_OUT = "/var/www/23skidoo.info/codex/tts-pages.json"
 # SGF-HEADER-CONSTANTS
 HEADER_HTML = """<header class="site-header">
 <h1><a href="/">Cthulhu<img src="/static/img/off_240x240.png" alt="Offerings to Cthulhu — home"></a>Offerings</h1>
-<p class="site-tagline">The time draws near.<br>The return of The Great Old One is upon us.</p>
+<p class="site-tagline">He dreams no longer; nor does he wake.<br>The Great Old One is held at the door.</p>
 </header>"""
 
 FOOTER_HTML = """<footer class="site-foot">
@@ -293,7 +293,7 @@ idx=f"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <div class="sub">The public-domain Lovecraft canon, transcribed block by block into the Offerings to Cthulhu ledger.<br>
 Read freely below; each work's bar shows how much has been permanently inscribed on-chain.</div>
 {rows}
-<div class="foot">Chain height {tip} &middot; {overall}% of the canon inscribed on-chain &middot; transcription begins at the Awakening (block 1,000,000) &middot; updated {ts}<br>
+<div class="foot">Chain height {tip} &middot; {overall}% of the canon inscribed on-chain &middot; {"the canon is complete &mdash; the chain now speaks in hash-seeded R&rsquo;lyehian, the Dreaming" if overall >= 100 else "transcription begins at the Awakening (block 1,000,000)"} &middot; updated {ts}<br>
 <em>That is not dead which can eternal lie, and with strange aeons even death may die.</em></div>
 {FOOTER_HTML}
 </div></body></html>"""

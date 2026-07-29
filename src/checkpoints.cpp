@@ -647,23 +647,31 @@ namespace Checkpoints
         LogPrintf("ResetSyncCheckpoint\n");
         LOCK(cs_hashSyncCheckpoint);
         const uint256& hash = Checkpoints::GetLatestHardenedCheckpoint();
-        if (mapBlockIndex.count(hash) && !mapBlockIndex[hash]->IsInMainChain())
+        CBlockIndex* pindexCkpt = mapBlockIndex.count(hash) ? mapBlockIndex[hash] : NULL;
+        // Membership must be tested against chainActive, not the
+        // status-flag IsInMainChain(): during fresh-datadir init genesis
+        // is already the active tip before it is flagged chain-valid,
+        // and the ppcoin-lineage force-connect below would misfire on
+        // it (issue #48).
+        if (pindexCkpt && !chainActive.Contains(pindexCkpt))
         {
-            // checkpoint block accepted but not yet in main chain
-            LogPrintf("ResetSyncCheckpoint: SetBestChain to hardened checkpoint %s\n", hash.ToString().c_str());
-            
-            CBlock block;
-            if (!ReadBlockFromDisk(block, mapBlockIndex[hash]))
-                return error("ResetSyncCheckpoint: ReadFromDisk failed for hardened checkpoint %s", hash.ToString().c_str());
-            CValidationState state;
-            LogPrintf("ResetSyncCheckpoint: ConnectTip\n");
-            // if (!SetBestChain(state, mapBlockIndex[hash]))
-            if (!ConnectTip(state, mapBlockIndex[hash]))
+            // Checkpoint block accepted but not on the active chain.
+            // The ppcoin lineage forced a reorg here via SetBestChain,
+            // which has no equivalent in this codebase; ConnectTip's
+            // precondition only holds when the checkpoint directly
+            // extends the current tip. Anything else is left to the
+            // normal best-chain activation machinery.
+            if (pindexCkpt->pprev == chainActive.Tip())
             {
-                return error("ResetSyncCheckpoint: SetBestChain failed for hardened checkpoint %s", hash.ToString().c_str());
+                LogPrintf("ResetSyncCheckpoint: ConnectTip to hardened checkpoint %s\n", hash.ToString().c_str());
+                CValidationState state;
+                if (!ConnectTip(state, pindexCkpt))
+                    return error("ResetSyncCheckpoint: ConnectTip failed for hardened checkpoint %s", hash.ToString().c_str());
             }
+            else
+                LogPrintf("ResetSyncCheckpoint: hardened checkpoint %s not on active chain; leaving reorg to best-chain activation\n", hash.ToString().c_str());
         }
-        else if(!mapBlockIndex.count(hash))
+        else if (!pindexCkpt)
         {
             // checkpoint block not yet accepted
             hashPendingCheckpoint = hash;
@@ -671,7 +679,7 @@ namespace Checkpoints
             LogPrintf("ResetSyncCheckpoint: pending for sync-checkpoint %s\n", hashPendingCheckpoint.ToString().c_str());
         }
 
-        if (!WriteSyncCheckpoint((mapBlockIndex.count(hash) && mapBlockIndex[hash]->IsInMainChain())? hash : Params().HashGenesisBlock()))
+        if (!WriteSyncCheckpoint((pindexCkpt && chainActive.Contains(pindexCkpt))? hash : Params().HashGenesisBlock()))
             return error("ResetSyncCheckpoint: failed to write sync checkpoint %s", hash.ToString().c_str());
         LogPrintf("ResetSyncCheckpoint: sync-checkpoint reset to %s\n", hashSyncCheckpoint.ToString().c_str());
         return true;
