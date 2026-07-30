@@ -42,6 +42,38 @@ Everything the issue body claimed checks out, plus these deltas:
    (visible in `.deps`), confirming it cannot build against distro
    OpenSSL 1.1/3 today.
 
+## Donor tree: dobbscoin-source (added same day)
+
+The sibling project's tree (github.com/SubGeniusFinance/dobbscoin-source,
+a genuine upstream Bitcoin Core 0.10 layout, **already modernized to
+build against OpenSSL 3** in its v0.10.3/v0.10.4 releases) contains
+working, maintainer-owned implementations of most of what this plan
+ports:
+
+| OFF phase | Donor artifact | Notes |
+|---|---|---|
+| Phase 3 (hashing) | `src/crypto/{sha256,sha512,ripemd160,hmac_sha256,hmac_sha512}` | lift directly |
+| Phase 4a (vendor) | `src/secp256k1/` vendored subtree + autotools wiring | proven build integration |
+| Phase 4c (sign) | `src/key.cpp` — sign path already on `secp256k1_ecdsa_sign` (0.10 shape) | |
+| Phase 4b interim | `src/ecwrapper.{h,cpp}` — OpenSSL verify + SEC1 pubkey recovery in **OpenSSL-3-compatible opaque-struct form** | verify stays OpenSSL but unpins 1.0.2 |
+| Phase 5b (script) | `src/script/interpreter.cpp` + `script.h` `CScriptNum`, plus `src/test/scriptnum_tests.cpp` **and the test-only `src/test/bignum.h`** (upstream's reference implementation used to prove CScriptNum equivalence) | the equivalence harness comes free |
+| Phase 5a alternative | `src/pow.cpp` `BignumPtr` wrappers — opaque-safe BIGNUM helpers that let KGW/DigiShield bignum math build on OpenSSL 3 | cheap unpin path, see below |
+| Phase 2 (crypter) | `src/wallet/crypter.cpp` — same `EVP_BytesToKey` KDF, `EVP_CIPHER_CTX_new/free` heap style (1.1+/3-safe) | KDF compat proven |
+
+**Strategic consequence — a new intermediate milestone.** dobbscoin
+proves that "builds against OpenSSL 3" and "OpenSSL-free" are separable
+goals. OFF's acute pain is the 1.0.2 pin, and that can die much earlier
+than full evacuation by porting dobbscoin's compat patterns
+(opaque-struct fixes: `ECDSA_SIG` accessors, heap `EVP_CIPHER_CTX`,
+`BignumPtr`-style bignum wrappers, ecwrapper verify). Full evacuation
+(no libcrypto at all) then proceeds on the original phases at leisure.
+
+**Porting caveat:** OFF's interpreter is 0.8-lineage — dobbscoin's 0.10
+`script/interpreter.cpp` cannot be lifted wholesale. Port the
+`CScriptNum` semantics *into* OFF's interpreter, and replay the
+equivalence argument against OFF's script usage; the donor's
+`scriptnum_tests` + test-only bignum.h make that tractable.
+
 ## Phased plan (cheapest → most hazardous)
 
 Each consensus phase gets its own release + soak; never bundle two
@@ -118,18 +150,20 @@ Strip `configure.ac:527-540` + the macOS brew hack, drop OpenSSL from
 `depends/`, delete the OpenSSL-1.0.2 build recipe from `doc/build-unix.md`.
 Neither binary links `libssl` or `libcrypto`. The 1.0.2 pin is dead.
 
-## Release-vehicle mapping (proposal)
+## Release-vehicle mapping (revised for the donor tree)
 
 | Release | Content | Consensus surface |
 |---|---|---|
 | v2.1.1 (whenever cut) | Phases 0-1 (+#50/#51 already merged) | none |
-| v2.1.2 | Phase 2 (RNG, cleanse, ctaes+KDF) | none (wallet-compat gate) |
-| v2.1.3 | Phase 3 (native hashing) | bit-identical; soak anyway |
-| v2.2.0 | Phase 4 (secp256k1 verify+sign) | YES — own soak |
-| v2.3.0 | Phase 5 (arith_uint256 + CScriptNum) + payoff | YES — own soak |
+| v2.1.2 | Phase 2 (RNG, cleanse, crypter heap-CTX) **+ M1: OpenSSL-3 compat unpin** — port dobbscoin's opaque-struct fixes (key.cpp/ecwrapper pattern, BignumPtr pow wrappers, heap EVP_CIPHER_CTX). **Retires the 1.0.2 pin** while still linking (modern) OpenSSL. | none if bignum wrappers are value-identical (testable) |
+| v2.1.3 | Phase 3 (native hashing, from donor src/crypto/) | bit-identical; soak anyway |
+| v2.2.0 | Phase 4 (vendor secp256k1 + sign; verify swap) | YES — own soak |
+| v2.3.0 | Phase 5 (native work/target math + CScriptNum via donor harness) + payoff unlink | YES — own soak |
 
-Phases 0-2 are safe to start immediately. Phase 5b should never share a
-release with anything else.
+Phases 0-2 + M1 are safe to start immediately. Phase 5b should never
+share a release with anything else. M1 changes the payoff curve
+dramatically: the build-pain motivation is satisfied at v2.1.2 instead
+of v2.3.0; everything after is security/consensus-hygiene driven.
 
 ## Test plan (cumulative)
 
