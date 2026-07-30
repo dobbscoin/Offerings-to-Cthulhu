@@ -61,6 +61,8 @@ research/chainstate-backup-record.md
 research/email-*.txt
 research/github-issue-*.md
 research/bct-*
+research/bct_*
+src/build.log
 research/discord-*
 research/9019x-*
 research/post-canon-*

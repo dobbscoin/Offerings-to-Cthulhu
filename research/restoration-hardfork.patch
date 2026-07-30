@@ -4,17 +4,21 @@ Restoration Hardfork v2.0.0 — patch against JimGilmore/offerings v1.6.2-Bokrug
 
 Conclave Treasury — 2-of-3 P2SH multisig (in construction):
 
-  Key #1 — WORKSTATION (~btcbob/.Offering)
+  [2026-07-30: key-custody host/path details redacted to role labels.
+   Addresses, pubkeys, and the multisig script are unchanged — they are
+   public on-chain data. No functional content altered.]
+
+  Key #1 — HOT (primary operator wallet)
     address:  QQHCKpiVji71RnyWDvE8aeyxpjgfxeuXRA
     pubkey:   03129479031d88a6a0b592e11f5059360e34b9ad83024bd5c497e251438b7adcde
     label:    Conclave-Treasury
-    backup:   ~/.Offering/wallet.dat.bak.20260520
+    backup:   wallet backup retained (location private)
 
-  Key #2 — VPS1 endciv (/home/endciv/.Offering, network-isolated, listen=0 connect=0)
+  Key #2 — COLD (network-isolated daemon, listen=0 connect=0)
     address:  QXUAxM4q63ZMa6QgSum5JBNQgZdGp3raog
     pubkey:   0244dbe9309db1c5e063a234ca83931a2e28b93480f47c3d3b7fcba2bcb578e059
-    label:    Conclave-Treasury-VPS1-EndCiv
-    backup:   /home/endciv/.Offering/wallet.dat.bak.20260520
+    label:    Conclave-Treasury (Key #2)
+    backup:   wallet backup retained (location private)
 
   Key #3 — PAPER WALLET (offline, never on any wallet.dat)
     address:  Qj7WwNxhtEV9im5nySZkEkCFDN1yj8g2wq
