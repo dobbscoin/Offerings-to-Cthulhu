@@ -492,17 +492,26 @@ int CAddrMan::Check_()
 
 void CAddrMan::GetAddr_(std::vector<CAddress> &vAddr)
 {
-    int nNodes = ADDRMAN_GETADDR_MAX_PCT*vRandom.size()/100;
+    unsigned int nNodes = ADDRMAN_GETADDR_MAX_PCT*vRandom.size()/100;
     if (nNodes > ADDRMAN_GETADDR_MAX)
         nNodes = ADDRMAN_GETADDR_MAX;
 
-    // perform a random shuffle over the first nNodes elements of vRandom (selecting from all)
-    for (int n = 0; n<nNodes; n++)
+    // perform a random shuffle, gathering up to nNodes routable entries.
+    // Entries cached before the RFC 6598 hygiene fix (#44) may be
+    // non-routable; never serve those in a getaddr reply (#51). Iterating
+    // the whole pool (instead of the first nNodes slots) keeps the reply
+    // at the intended size while skipping.
+    for (unsigned int n = 0; n < vRandom.size(); n++)
     {
+        if (vAddr.size() >= nNodes)
+            break;
         int nRndPos = GetRandInt(vRandom.size() - n) + n;
         SwapRandom(n, nRndPos);
         assert(mapInfo.count(vRandom[n]) == 1);
-        vAddr.push_back(mapInfo[vRandom[n]]);
+        const CAddress &addr = mapInfo[vRandom[n]];
+        if (!addr.IsRoutable())
+            continue;
+        vAddr.push_back(addr);
     }
 }
 

@@ -32,6 +32,7 @@ endif
 test_Offerings_LDADD += $(BDB_LIBS)
 
 test_Offerings_SOURCES = \
+  addrman_tests.cpp \
   alert_tests.cpp \
   allocator_tests.cpp \
   base32_tests.cpp \
