@@ -538,6 +538,23 @@ namespace Checkpoints
         return (GetBoolArg("-checkpointenforce", true) || mapArgs.count("-checkpointkey")); // checkpoint master node is always enforced
     }
 
+    // #50: restore the persisted sync checkpoint at startup. It has always
+    // been written on every accept (WriteSyncCheckpoint -> pblocktree) but
+    // was never read back, so every restart zeroed the in-memory view on
+    // masters and recipients alike.
+    bool LoadSyncCheckpoint()
+    {
+        LOCK(cs_hashSyncCheckpoint);
+        uint256 hashCheckpoint = 0;
+        if (!pblocktree->ReadSyncCheckpoint(hashCheckpoint) || hashCheckpoint == 0)
+            return false; // nothing persisted (fresh datadir)
+        if (!mapBlockIndex.count(hashCheckpoint))
+            return error("LoadSyncCheckpoint: persisted sync-checkpoint %s not in block index", hashCheckpoint.ToString().c_str());
+        hashSyncCheckpoint = hashCheckpoint;
+        LogPrintf("LoadSyncCheckpoint: sync-checkpoint restored %s\n", hashCheckpoint.ToString().c_str());
+        return true;
+    }
+
     bool AcceptPendingSyncCheckpoint()
     {
         LOCK(cs_hashSyncCheckpoint);

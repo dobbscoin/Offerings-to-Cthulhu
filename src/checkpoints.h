@@ -165,6 +165,7 @@ namespace Checkpoints
     extern std::string strCheckpointWarning;
 	
     bool WriteSyncCheckpoint(const uint256& hashCheckpoint);
+    bool LoadSyncCheckpoint();
     bool IsSyncCheckpointEnforced();
     bool AcceptPendingSyncCheckpoint();
     uint256 AutoSelectSyncCheckpoint();

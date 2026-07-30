@@ -3075,8 +3075,14 @@ bool ProcessBlock(CValidationState &state, CNode* pfrom, CBlock* pblock, CDiskBl
     LogPrintf("ProcessBlock: ACCEPTED\n");
 
     // ppcoin: if responsible for sync-checkpoint send it
-    if (pfrom && !CSyncCheckpoint::strMasterPrivKey.empty() &&
-        (int)GetArg("-checkpointdepth", -1) >= 0)
+    // #50: locally-produced blocks (pool submitblock, internal miner)
+    // arrive with pfrom == NULL — they must trigger the auto-broadcast
+    // too, or a block-producing broadcaster never re-broadcasts and the
+    // network checkpoint goes stale. Skip during initial sync so IBD
+    // doesn't sign+relay once per historical block.
+    if (!CSyncCheckpoint::strMasterPrivKey.empty() &&
+        (int)GetArg("-checkpointdepth", -1) >= 0 &&
+        !IsInitialBlockDownload())
         Checkpoints::SendSyncCheckpoint(Checkpoints::AutoSelectSyncCheckpoint());
 		
     return true;
@@ -3363,6 +3369,10 @@ bool static LoadBlockIndexDB()
         chainActive.Tip()->GetBlockHash().ToString(), chainActive.Height(),
         DateTimeStrFormat("%Y-%m-%d %H:%M:%S", chainActive.Tip()->GetBlockTime()),
         Checkpoints::GuessVerificationProgress(chainActive.Tip()));
+
+    // ppcoin/#50: reload the persisted sync checkpoint (written on every
+    // accept, but never read back before this — restarts zeroed it)
+    Checkpoints::LoadSyncCheckpoint();
 
     return true;
 }
@@ -4002,6 +4012,16 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
             LOCK(cs_mapAlerts);
             for (auto& item : mapAlerts)
                 item.second.RelayTo(pfrom);
+        }
+
+        // ppcoin/#50: relay the current sync-checkpoint to a newly
+        // connected peer, so restarted or fresh nodes reacquire it
+        // immediately instead of waiting for the next master broadcast.
+        // (Present in the ppcoin lineage; dropped in the original port.)
+        {
+            LOCK(Checkpoints::cs_hashSyncCheckpoint);
+            if (!Checkpoints::checkpointMessage.IsNull())
+                Checkpoints::checkpointMessage.RelayTo(pfrom);
         }
 
         pfrom->fSuccessfullyConnected = true;

@@ -150,12 +150,22 @@ peer connections, daemon versions, and the broadcaster's debug.log for
 After first-light, the daemon takes over:
 
 - **Tip-advance auto-broadcast.** `src/main.cpp` ProcessBlock re-broadcasts
-  a fresh checkpoint at tip minus `-checkpointdepth` each time a block
-  arrives from a peer. No cron required — **but only when
-  `-checkpointdepth >= 0` was supplied** (default -1 disables the
-  auto-path entirely; verified during the v2.1.0 testnet rehearsal, where
-  a broadcaster running with only `-checkpointkey` signed the manual
-  first-light checkpoint and then went silent for 590 blocks).
+  a fresh checkpoint at tip minus `-checkpointdepth` each time a block is
+  accepted — peer-received **or locally produced** (pool `submitblock`,
+  internal miner; fixed in #50 — pre-fix binaries only fired on
+  peer-origin blocks, so a block-producing broadcaster went stale). No
+  cron required — **but only when `-checkpointdepth >= 0` was supplied**
+  (default -1 disables the auto-path entirely; verified during the v2.1.0
+  testnet rehearsal, where a broadcaster running with only
+  `-checkpointkey` signed the manual first-light checkpoint and then went
+  silent for 590 blocks). The auto-path is suppressed during initial
+  block download.
+- **Restart behavior.** The current sync checkpoint is persisted and
+  reloaded at startup (#50 — pre-fix binaries zeroed the in-memory view
+  on every restart, master and recipient alike, until the next broadcast
+  arrived). Newly connected peers also receive the current checkpoint
+  message at version handshake (#50), so a restarted recipient reacquires
+  it immediately.
 - **`-checkpointkey` persistence.** The privkey lives only in the running
   process's memory and the systemd EnvironmentFile (if used). A daemon
   restart drops it; the operator must re-supply `-checkpointkey` (and
@@ -207,9 +217,12 @@ just restart with `-checkpointkey` as before.
 
 ## Open subquestions (track separately from this runbook)
 
-1. **Cadence heartbeat** — supplement tip-advance auto-broadcast with a
-   periodic re-broadcast to handle the case where a peer joined right
-   after the most recent tip-advance and missed the gossip wave.
+1. ~~**Cadence heartbeat**~~ — resolved by #50: the version-handshake
+   relay delivers the current checkpoint to any peer that joined after
+   the most recent gossip wave, and the auto-broadcast now also fires on
+   locally-produced blocks. An operator-side heartbeat cron remains a
+   harmless belt-and-braces during rollout of mixed pre/post-#50
+   binaries; it can be retired once the broadcaster runs a #50 build.
 2. **Depth tuning** — `MAX_REORG_DEPTH=100` ≈ 100 minutes at 60s blocks.
    Worth tuning if real-world reorg statistics suggest a different bound.
 

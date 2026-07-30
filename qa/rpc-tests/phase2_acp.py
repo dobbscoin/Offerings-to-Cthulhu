@@ -280,6 +280,96 @@ def main():
                            "checkpoint enforcement broken" % (a5_hash[:16], a5_after[:16]))
     print("    PASS  node 2's A5 at h=5 unchanged after peering with attacker")
 
+    # ------------------------------------------------------------------
+    # PHASE 5 — #50: persisted checkpoint survives a restart.
+    #
+    # The checkpoint has always been written to the block tree db on
+    # accept, but was never read back — a restart zeroed the in-memory
+    # view (observed fleet-wide on mainnet). Stop node 1 first so the
+    # only possible source of the value is node 0's own disk, not a
+    # handshake relay from a peer that still holds the message.
+    # ------------------------------------------------------------------
+    print("\nPHASE 5 — persisted sync-checkpoint reloads across restart (#50)")
+
+    print("  stopping node 1 (isolate node 0 from handshake relays) ...")
+    cli(d1, "stop")
+    time.sleep(3)
+
+    print("  restarting node 0 with -connect=0 ...")
+    cli(d0, "stop")
+    time.sleep(3)
+    start_node(0, d0, ["-checkpointkey=" + TEST_CHECKPOINT_WIF,
+                       "-checkpointdepth=20", "-connect=0"])
+
+    ckpt = json.loads(cli(d0, "getcheckpoint"))
+    if ckpt.get("synccheckpoint") != target_hash:
+        raise RuntimeError(
+            "after restart, node 0 getcheckpoint = %s, expected the phase-2 "
+            "checkpoint %s — startup reload (LoadSyncCheckpoint) not working"
+            % (ckpt.get("synccheckpoint"), target_hash))
+    print("  PASS  node 0 restored checkpoint %s... (h=%s) from disk"
+          % (target_hash[:16], ckpt.get("height")))
+
+    # ------------------------------------------------------------------
+    # PHASE 6 — #50: auto-broadcast fires on locally-produced blocks.
+    #
+    # Node 0 now runs with -checkpointdepth=20 and no peers. setgenerate
+    # produces blocks with pfrom == NULL — exactly the pool-submitblock
+    # shape that never triggered the old pfrom-gated auto-broadcast.
+    # ------------------------------------------------------------------
+    print("\nPHASE 6 — auto-broadcast on self-produced blocks (#50)")
+
+    cli(d0, "setgenerate", "true", "5")
+    tip = int(cli(d0, "getblockcount"))
+    want_h = tip - 20
+    want_hash = cli(d0, "getblockhash", str(want_h))
+
+    end = time.time() + 15
+    got = None
+    while time.time() < end:
+        got = json.loads(cli(d0, "getcheckpoint"))
+        if got.get("synccheckpoint") == want_hash:
+            break
+        time.sleep(0.5)
+    if got.get("synccheckpoint") != want_hash:
+        raise RuntimeError(
+            "auto-broadcast did not advance the checkpoint on local blocks: "
+            "getcheckpoint=%s expected tip-20 %s (tip=%d) — pfrom gate fix "
+            "not working" % (got.get("synccheckpoint"), want_hash, tip))
+    print("  PASS  checkpoint auto-advanced to tip-20 (h=%d) with zero "
+          "peer-origin blocks" % want_h)
+
+    # ------------------------------------------------------------------
+    # PHASE 7 — #50: version-handshake relay to a fresh peer.
+    #
+    # Node 4 starts with an empty datadir and connects to node 0. No
+    # sendcheckpoint is issued and no blocks are mined during this
+    # phase, so the ONLY path for node 4 to learn the checkpoint is the
+    # relay of checkpointMessage in the version handler (restored from
+    # the ppcoin lineage).
+    # ------------------------------------------------------------------
+    print("\nPHASE 7 — checkpoint relayed to fresh peer on handshake (#50)")
+
+    d4 = make_datadir(tmp, 4)
+    start_node(4, d4, ["-connect=127.0.0.1:%d" % p2p0])
+
+    end = time.time() + 45
+    got4 = {}
+    while time.time() < end:
+        out, err = cli_try(d4, "getcheckpoint")
+        if out is not None:
+            got4 = json.loads(out)
+            if got4.get("synccheckpoint") == want_hash:
+                break
+        time.sleep(1)
+    if got4.get("synccheckpoint") != want_hash:
+        raise RuntimeError(
+            "fresh node 4 did not acquire checkpoint %s via handshake relay "
+            "within 45s (got %s) — version-handler relay not working"
+            % (want_hash[:16], got4.get("synccheckpoint")))
+    print("  PASS  fresh node 4 acquired checkpoint %s... purely via "
+          "version-handshake relay" % want_hash[:16])
+
     print("\n=== ALL PHASE-2 ACP CHECKS PASSED ===")
     return 0
 
