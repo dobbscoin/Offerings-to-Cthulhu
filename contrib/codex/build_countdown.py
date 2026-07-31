@@ -77,7 +77,7 @@ ELDERSIGN  = 1055555      # BIP66 + BIP65 + 240-conf maturity + rolling checkpoi
 FIRST_FINALE = 1141666    # Ritual Renewed — first 10,000 OFF finale (~autumnal equinox)
 RITE_START   = FIRST_FINALE - 28*1440   # daily special blocks begin (block 1,101,346)
 RECLAMATION_DAYS = 730    # 2-year window
-RELEASE_TAG = "v2.1.0-Nodens"  # current GitHub release; bump in tandem with new tags
+RELEASE_TAG = "v2.1.1-Nodens"  # current GitHub release; bump in tandem with new tags
 OUT   = "/var/www/23skidoo.info/awakening/index.html"
 CACHE = os.path.join(STATE_DIR, "countdown_cache.json")
 
