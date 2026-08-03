@@ -22,7 +22,7 @@ if [ $# -lt 2 ]; then
   exit 1
 fi
 
-DISTDIR=Offerings-2.1.1.0
+DISTDIR=Offerings-2.1.2.0
 
 # Cross-compile for windows first (breaking the mingw/windows build is most common)
 cd /home/btcbob/claude/offerings-master
