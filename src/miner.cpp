@@ -8,6 +8,7 @@
 #include "core.h"
 #include "main.h"
 #include "net.h"
+#include "pow.h"
 #include "checkpoints.h"
 #include "base58.h"
 #ifdef ENABLE_WALLET
@@ -375,7 +376,7 @@ CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn)
         // Fill in header
         pblock->hashPrevBlock  = pindexPrev->GetBlockHash();
         UpdateTime(*pblock, pindexPrev);
-        pblock->nBits          = GetNextWorkRequired(pindexPrev, pblock);
+        pblock->nBits          = GetNextWorkRequiredForMining(pindexPrev, pblock);
         pblock->nNonce         = 0;
         pblock->vtx[0].vin[0].scriptSig = CScript() << OP_0 << OP_0;
         pblocktemplate->vTxSigOps[0] = GetLegacySigOpCount(pblock->vtx[0]);
@@ -938,6 +939,15 @@ void static BitcoinMiner(CWallet *pwallet)
 
             // Update nTime every few seconds
             UpdateTime(*pblock, pindexPrev);
+            // Emergency-difficulty (issue #59): the >1h window can open
+            // mid-grind, and nothing else interrupts a stalled template —
+            // no tip change, no mempool tick — so nonce exhaustion alone
+            // would keep us on the stale LWMA target for hours while a
+            // min-diff block is already consensus-valid. Rebuild so
+            // CreateNewBlock stamps the emergency bits.
+            if (pblock->nBits != Params().ProofOfWorkLimit().GetCompact() &&
+                EmergencyDifficultyEligible(pindexPrev, (int64_t)pblock->nTime))
+                break;
             // nBlockTime = ByteReverse(pblock->nTime);
             if (TestNet())
             {

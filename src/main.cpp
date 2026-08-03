@@ -1815,8 +1815,10 @@ void UpdateTime(CBlockHeader& block, const CBlockIndex* pindexPrev)
     block.nTime = max(pindexPrev->GetMedianTimePast()+1, GetAdjustedTime());
 
     // Updating time can change work required on testnet:
+    // (mining-only helper — every UpdateTime call site is a template path,
+    // so the emergency-aware target is correct here; issue #59)
     if (TestNet())
-        block.nBits = GetNextWorkRequired(pindexPrev, &block);
+        block.nBits = GetNextWorkRequiredForMining(pindexPrev, &block);
 }
 
 

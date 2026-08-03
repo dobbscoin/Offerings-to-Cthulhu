@@ -5,6 +5,7 @@
 
 #include "rpcserver.h"
 #include "chainparams.h"
+#include "pow.h"
 #include "init.h"
 #include "net.h"
 #include "main.h"
@@ -315,7 +316,14 @@ Value getwork(const Array& params, bool fHelp)
         static CBlockIndex* pindexPrev;
         static int64_t nStart;
         static CBlockTemplate* pblocktemplate;
-        if (pindexPrev != chainActive.Tip() ||
+        // Emergency-difficulty (issue #59): during a stall there is no tip
+        // change and no mempool tick, so the cached template would keep
+        // serving the stale LWMA target forever. Rebuild the moment the
+        // >1h window opens.
+        bool fEmergencyRebuild = pblocktemplate != NULL &&
+            pblocktemplate->block.nBits != Params().ProofOfWorkLimit().GetCompact() &&
+            EmergencyDifficultyEligible(chainActive.Tip(), GetAdjustedTime());
+        if (pindexPrev != chainActive.Tip() || fEmergencyRebuild ||
             (mempool.GetTransactionsUpdated() != nTransactionsUpdatedLast && GetTime() - nStart > 60))
         {
             if (pindexPrev != chainActive.Tip())
@@ -491,7 +499,14 @@ Value getblocktemplate(const Array& params, bool fHelp)
     static CBlockIndex* pindexPrev;
     static int64_t nStart;
     static CBlockTemplate* pblocktemplate;
-    if (pindexPrev != chainActive.Tip() ||
+    // Emergency-difficulty (issue #59): during a stall there is no tip
+    // change and no mempool tick, so the cached template would keep serving
+    // pool miners the stale LWMA target forever (only nTime is refreshed
+    // below). Rebuild the moment the >1h window opens.
+    bool fEmergencyRebuild = pblocktemplate != NULL &&
+        pblocktemplate->block.nBits != Params().ProofOfWorkLimit().GetCompact() &&
+        EmergencyDifficultyEligible(chainActive.Tip(), GetAdjustedTime());
+    if (pindexPrev != chainActive.Tip() || fEmergencyRebuild ||
         (mempool.GetTransactionsUpdated() != nTransactionsUpdatedLast && GetTime() - nStart > 5))
     {
         // Clear pindexPrev so future calls make a new block, despite any failures from here on

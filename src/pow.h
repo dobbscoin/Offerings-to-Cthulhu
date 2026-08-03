@@ -110,4 +110,15 @@ int64_t LWMA3ForkHeight();
 int     EmergencyDiffForkHeight();
 bool    IsEmergencyDifficultyBlock(const CBlockHeader& block, const CBlockIndex* pindexPrev);
 
+// Miner-side emergency-difficulty support (issue #59). The rule above is a
+// validation exemption; producers must deliberately choose the min-diff
+// target for it to ever fire. EmergencyDifficultyEligible() is the shared
+// gate set (activation height, signed-window skip, strict >1h gap) minus
+// the nBits check; GetNextWorkRequiredForMining() is what template
+// construction calls instead of GetNextWorkRequired() — it returns
+// ProofOfWorkLimit when the valve is open, the normal target otherwise.
+// Validation paths must keep calling GetNextWorkRequired().
+bool    EmergencyDifficultyEligible(const CBlockIndex* pindexPrev, int64_t nBlockTime);
+unsigned int GetNextWorkRequiredForMining(const CBlockIndex* pindexLast, const CBlockHeader *pblock);
+
 #endif // BITCOIN_POW_H

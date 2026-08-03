@@ -113,7 +113,7 @@ int EmergencyDiffForkHeight()
                                                : HARDFORK_EMERGENCY_DIFF_MAIN_OFF;
 }
 
-bool IsEmergencyDifficultyBlock(const CBlockHeader& block, const CBlockIndex* pindexPrev)
+bool EmergencyDifficultyEligible(const CBlockIndex* pindexPrev, int64_t nBlockTime)
 {
     if (pindexPrev == NULL)
         return false;
@@ -131,15 +131,39 @@ bool IsEmergencyDifficultyBlock(const CBlockHeader& block, const CBlockIndex* pi
         return false;
 
     // (c) Strict-greater gap. Equality at exactly 1h is not enough.
-    const int64_t gap = (int64_t)block.nTime - (int64_t)pindexPrev->nTime;
+    const int64_t gap = nBlockTime - (int64_t)pindexPrev->nTime;
     if (gap <= EMERGENCY_DIFFICULTY_GAP)
         return false;
 
-    // (d) Min-difficulty only. Better-than-powLimit must publish at that target.
-    CBigNum bnTarget;
-    bnTarget.SetCompact(block.nBits);
-    if (bnTarget != Params().ProofOfWorkLimit())
+    return true;
+}
+
+bool IsEmergencyDifficultyBlock(const CBlockHeader& block, const CBlockIndex* pindexPrev)
+{
+    // (a)-(c) shared with the miner-side path (issue #59).
+    if (!EmergencyDifficultyEligible(pindexPrev, (int64_t)block.nTime))
+        return false;
+
+    // (d) Min-difficulty only. Better-than-powLimit must publish at that
+    // target. Compare compact-to-compact: powLimit itself (~uint256(0)>>20,
+    // 236 mantissa bits) is not exactly representable in nBits' 23-bit
+    // mantissa, so the original CBigNum-value comparison could never match
+    // ANY encodable nBits — the valve was unopenable as shipped (issue #59).
+    // This matches the dobbscoin v0.13.0 reference implementation.
+    if (block.nBits != Params().ProofOfWorkLimit().GetCompact())
         return false;
 
     return true;
+}
+
+// Template-construction counterpart of the validation exemption (issue #59):
+// when the emergency window is open, mine AT the min-diff target so the
+// exemption can actually fire. Never used on validation paths — the strict
+// nBits check there stays on GetNextWorkRequired() + IsEmergencyDifficultyBlock().
+unsigned int GetNextWorkRequiredForMining(const CBlockIndex* pindexLast,
+                                          const CBlockHeader *pblock)
+{
+    if (EmergencyDifficultyEligible(pindexLast, (int64_t)pblock->nTime))
+        return Params().ProofOfWorkLimit().GetCompact();
+    return GetNextWorkRequired(pindexLast, pblock);
 }
