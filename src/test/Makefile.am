@@ -53,6 +53,7 @@ test_Offerings_SOURCES = \
   multisig_tests.cpp \
   netbase_tests.cpp \
   pmt_tests.cpp \
+  pow_tests.cpp \
   rpc_tests.cpp \
   script_P2SH_tests.cpp \
   script_tests.cpp \
