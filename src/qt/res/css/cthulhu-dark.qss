@@ -415,3 +415,11 @@ OverviewPage QFrame#frame_2 {
     background-color: rgba(20, 32, 37, 0.70);
     border: 1px solid #2a3e46;
 }
+
+/* Chain-vitals card ("The Deep") — same ~70% backing as the Transgressions
+ * card above, so its stats read cleanly with the tile only bleeding through
+ * faintly. Same ID-selector specificity note applies. */
+OverviewPage QFrame#frameVitals {
+    background-color: rgba(20, 32, 37, 0.70);
+    border: 1px solid #2a3e46;
+}
