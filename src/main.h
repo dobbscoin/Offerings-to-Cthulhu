@@ -193,6 +193,20 @@ bool    CheckConclaveSignature(const CBlock& block, int nHeight);
 int64_t GetTreasurySubsidy(int nHeight);
 int64_t GetMinerSubsidy(int nHeight, int64_t nFees);
 int64_t GetTitheAmount(int nHeight);
+
+/** Read-only view of the Great Ritual schedule for a given height (GUI/RPC display; mirrors RitualBonus()) */
+struct CRitualStatus
+{
+    int     nNextFinale;      //! height of the next finale at or above the queried height
+    int     nBlocksToFinale;  //! nNextFinale - height (0 when the queried height IS a finale)
+    int     nLastFinale;      //! most recent finale height already reached, or 0 if none yet
+    bool    fInRite;          //! inside the 29-day rite window leading to nNextFinale
+    int     nRiteDay;         //! days before the finale of the upcoming special block (0 = finale); valid when fInRite
+    int64_t nUpcomingBounty;  //! bounty of the upcoming special block (0 during the sacrifice days)
+};
+CRitualStatus GetRitualStatus(int nHeight);
+/** Address paid by the miner output (vout[0]) of the coinbase at nHeight; false if unavailable */
+bool GetCoinbasePayoutAddress(int nHeight, std::string& addressRet);
 unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader *pblock);
 
 void UpdateTime(CBlockHeader& block, const CBlockIndex* pindexPrev);

@@ -47,6 +47,9 @@ private:
     qint64 currentUnconfirmedBalance;
     qint64 currentImmatureBalance;
 
+    int cachedClaimantFinale;
+    QString cachedClaimantAddr;
+
     TxViewDelegate *txdelegate;
     TransactionFilterProxy *filter;
 
@@ -54,6 +57,7 @@ private slots:
     void updateDisplayUnit();
     void handleTransactionClicked(const QModelIndex &index);
     void updateAlerts(const QString &warnings);
+    void updateChainVitals(int count);
 };
 
 #endif // OVERVIEWPAGE_H

@@ -387,6 +387,186 @@
          </property>
         </spacer>
        </item>
+       <item>
+        <widget class="QFrame" name="frameVitals">
+         <property name="frameShape">
+          <enum>QFrame::StyledPanel</enum>
+         </property>
+         <property name="frameShadow">
+          <enum>QFrame::Raised</enum>
+         </property>
+         <layout class="QVBoxLayout" name="verticalLayoutVitals">
+          <item>
+           <widget class="QLabel" name="labelVitalsTitle">
+            <property name="font">
+             <font>
+              <weight>75</weight>
+              <bold>true</bold>
+             </font>
+            </property>
+            <property name="text">
+             <string>The Deep</string>
+            </property>
+            <property name="toolTip">
+             <string>Live chain statistics, read entirely from your own node</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <layout class="QFormLayout" name="formLayoutVitals">
+            <property name="horizontalSpacing">
+             <number>12</number>
+            </property>
+            <property name="verticalSpacing">
+             <number>6</number>
+            </property>
+            <item row="0" column="0">
+             <widget class="QLabel" name="labelVitalsHeightText">
+              <property name="text">
+               <string>Depth:</string>
+              </property>
+              <property name="toolTip">
+               <string>Current block height</string>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="1">
+             <widget class="QLabel" name="labelVitalsHeight">
+              <property name="font">
+               <font>
+                <weight>75</weight>
+                <bold>true</bold>
+               </font>
+              </property>
+              <property name="text">
+               <string notr="true">...</string>
+              </property>
+              <property name="textInteractionFlags">
+               <set>Qt::TextSelectableByMouse</set>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="0">
+             <widget class="QLabel" name="labelVitalsDiffText">
+              <property name="text">
+               <string>Vigilance:</string>
+              </property>
+              <property name="toolTip">
+               <string>Network difficulty: current / mean over the last 7 days (10,080 blocks)</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="1">
+             <widget class="QLabel" name="labelVitalsDiff">
+              <property name="font">
+               <font>
+                <weight>75</weight>
+                <bold>true</bold>
+               </font>
+              </property>
+              <property name="text">
+               <string notr="true">...</string>
+              </property>
+              <property name="textInteractionFlags">
+               <set>Qt::TextSelectableByMouse</set>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="0">
+             <widget class="QLabel" name="labelVitalsHashText">
+              <property name="text">
+               <string>The Thrum:</string>
+              </property>
+              <property name="toolTip">
+               <string>Estimated network hashrate over the last 120 blocks</string>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="1">
+             <widget class="QLabel" name="labelVitalsHash">
+              <property name="font">
+               <font>
+                <weight>75</weight>
+                <bold>true</bold>
+               </font>
+              </property>
+              <property name="text">
+               <string notr="true">...</string>
+              </property>
+              <property name="textInteractionFlags">
+               <set>Qt::TextSelectableByMouse</set>
+              </property>
+             </widget>
+            </item>
+            <item row="3" column="0">
+             <widget class="QLabel" name="labelVitalsRitualText">
+              <property name="text">
+               <string>Next Finale:</string>
+              </property>
+              <property name="toolTip">
+               <string>Countdown to the next Great Ritual finale — a 10,000 OFF bounty for the worshipper who mines it</string>
+              </property>
+             </widget>
+            </item>
+            <item row="3" column="1">
+             <widget class="QLabel" name="labelVitalsRitual">
+              <property name="font">
+               <font>
+                <weight>75</weight>
+                <bold>true</bold>
+               </font>
+              </property>
+              <property name="text">
+               <string notr="true">...</string>
+              </property>
+              <property name="wordWrap">
+               <bool>true</bool>
+              </property>
+              <property name="textInteractionFlags">
+               <set>Qt::TextSelectableByMouse</set>
+              </property>
+             </widget>
+            </item>
+            <item row="4" column="0">
+             <widget class="QLabel" name="labelVitalsClaimantText">
+              <property name="visible">
+               <bool>false</bool>
+              </property>
+              <property name="text">
+               <string>Claimed by:</string>
+              </property>
+              <property name="toolTip">
+               <string>Coinbase payout address of the most recent finale block. For pool-found blocks this is the pool's payout address, not the individual winner.</string>
+              </property>
+             </widget>
+            </item>
+            <item row="4" column="1">
+             <widget class="QLabel" name="labelVitalsClaimant">
+              <property name="visible">
+               <bool>false</bool>
+              </property>
+              <property name="font">
+               <font>
+                <weight>75</weight>
+                <bold>true</bold>
+               </font>
+              </property>
+              <property name="text">
+               <string notr="true"/>
+              </property>
+              <property name="openExternalLinks">
+               <bool>true</bool>
+              </property>
+              <property name="textInteractionFlags">
+               <set>Qt::TextBrowserInteraction</set>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+         </layout>
+        </widget>
+       </item>
       </layout>
      </item>
     </layout>

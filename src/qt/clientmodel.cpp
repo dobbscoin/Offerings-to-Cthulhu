@@ -18,6 +18,7 @@ using namespace boost::placeholders;
 #include "checkpoints.h"
 #include "main.h"
 #include "net.h"
+#include "rpcserver.h"   // GetDifficulty()
 #include "ui_interface.h"
 
 #include <stdint.h>
@@ -96,6 +97,53 @@ double ClientModel::getVerificationProgress() const
 {
     LOCK(cs_main);
     return Checkpoints::GuessVerificationProgress(chainActive.Tip());
+}
+
+double ClientModel::getDifficulty() const
+{
+    LOCK(cs_main);
+    return GetDifficulty(chainActive.Tip());
+}
+
+double ClientModel::getAvgDifficulty(int nBlocks) const
+{
+    LOCK(cs_main);
+    const CBlockIndex* pindex = chainActive.Tip();
+    if (!pindex || nBlocks <= 0)
+        return 0.0;
+    double sum = 0.0;
+    int n = 0;
+    while (pindex && n < nBlocks) {
+        sum += GetDifficulty(pindex);
+        pindex = pindex->pprev;
+        n++;
+    }
+    return n ? sum / n : 0.0;
+}
+
+double ClientModel::getNetworkHashPS(int nBlocks) const
+{
+    // Same estimator as the getnetworkhashps RPC: chain-work delta over wall time.
+    LOCK(cs_main);
+    CBlockIndex* pb = chainActive.Tip();
+    if (pb == NULL || !pb->nHeight)
+        return 0.0;
+    int lookup = nBlocks;
+    if (lookup <= 0 || lookup > pb->nHeight)
+        lookup = pb->nHeight;
+    CBlockIndex* pb0 = pb;
+    int64_t minTime = pb0->GetBlockTime();
+    int64_t maxTime = minTime;
+    for (int i = 0; i < lookup; i++) {
+        pb0 = pb0->pprev;
+        int64_t time = pb0->GetBlockTime();
+        minTime = std::min(time, minTime);
+        maxTime = std::max(time, maxTime);
+    }
+    if (minTime == maxTime)
+        return 0.0;
+    uint256 workDiff = pb->nChainWork - pb0->nChainWork;
+    return workDiff.getdouble() / (double)(maxTime - minTime);
 }
 
 void ClientModel::updateTimer()
