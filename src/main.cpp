@@ -8,6 +8,7 @@
 #include "main.h"
 
 #include "addrman.h"
+#include "base58.h"
 #include "alert.h"
 #include "chainparams.h"
 #include "checkpoints.h"
@@ -1237,6 +1238,54 @@ static int64_t RitualBonus(int nHeight)
     if (day <= 19) return 10    * COIN;               // third week  - greed
     if (day <= 26) return 1     * COIN;               // second week - acceptance
     return 0;                                         // first days  - sacrifice (base reward only)
+}
+
+// Read-only view of the Ritual schedule for display surfaces (GUI overview panel).
+// Pure height math; MUST stay in lockstep with RitualBonus() above. No consensus role.
+CRitualStatus GetRitualStatus(int nHeight)
+{
+    const int64_t FIRST_FINALE = 1141666;
+    const int64_t PERIOD       = 263000;
+    const int64_t DAY          = 1440;
+
+    CRitualStatus s;
+    int64_t h = (int64_t)nHeight;
+    int64_t k = (h <= FIRST_FINALE) ? 0 : (h - FIRST_FINALE + PERIOD - 1) / PERIOD;
+    int64_t F = FIRST_FINALE + k*PERIOD;              // next finale at or above h
+
+    s.nNextFinale     = (int)F;
+    s.nBlocksToFinale = (int)(F - h);
+    s.nLastFinale     = (h >= FIRST_FINALE) ? (int)(h == F ? F : F - PERIOD) : 0;
+    s.fInRite         = (F - h) <= 28*DAY;
+    s.nRiteDay        = 0;
+    s.nUpcomingBounty = 0;
+    if (s.fInRite) {
+        int64_t d = F - h;
+        s.nRiteDay = (int)(d / DAY);                  // day of the next special block at/above h
+        s.nUpcomingBounty = RitualBonus((int)(F - ((int64_t)s.nRiteDay)*DAY));
+    }
+    return s;
+}
+
+// Address paid by the coinbase's miner output (vout[0]) at nHeight. Post-fork the coinbase is
+// vout[0]=miner / vout[1]=Treasury, so for a finale this is the on-chain claimant of the bounty
+// (for pool-found blocks: the pool's payout address, not the individual winner).
+bool GetCoinbasePayoutAddress(int nHeight, std::string& addressRet)
+{
+    LOCK(cs_main);
+    if (nHeight <= 0 || nHeight > chainActive.Height())
+        return false;
+    CBlockIndex* pindex = chainActive[nHeight];
+    CBlock block;
+    if (pindex == NULL || !ReadBlockFromDisk(block, pindex))
+        return false;
+    if (block.vtx.empty() || block.vtx[0].vout.empty())
+        return false;
+    CTxDestination dest;
+    if (!ExtractDestination(block.vtx[0].vout[0].scriptPubKey, dest))
+        return false;
+    addressRet = CBitcoinAddress(dest).ToString();
+    return true;
 }
 
 int64_t GetBlockValue(int nHeight, int64_t nFees)

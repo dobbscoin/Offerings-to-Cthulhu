@@ -56,6 +56,13 @@ public:
     double getVerificationProgress() const;
     QDateTime getLastBlockDate() const;
 
+    //! Chain vitals for the Overview panel (all local; no network I/O)
+    double getDifficulty() const;
+    //! Mean difficulty over the last nBlocks headers (in-memory block index walk)
+    double getAvgDifficulty(int nBlocks) const;
+    //! Estimated network hashes/sec over the last nBlocks (getnetworkhashps-style estimator)
+    double getNetworkHashPS(int nBlocks = 120) const;
+
     //! Return network (main, testnet3, regtest)
     QString getNetworkName() const;
     //! Return true if core is doing initial block download
