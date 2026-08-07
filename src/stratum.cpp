@@ -71,13 +71,15 @@ bool CStratumClient::Start(const std::string& strHostIn, int nPortIn, const std:
 void CStratumClient::Stop()
 {
     fShutdown = true;
-    // Unblock any blocking read by shutting the socket under it.
-    int fd = nSocketFd;
+    // Unblock any blocking read by shutting down (not closing) the socket
+    // under it — asio's destructor still owns the close. Can't use the
+    // closesocket macro here: compat.h maps it to myclosesocket(SOCKET&).
+    intptr_t fd = nSocketFd;
     if (fd != -1) {
 #ifdef WIN32
-        closesocket(fd);
+        ::shutdown((SOCKET)fd, 2 /* SD_BOTH */);
 #else
-        ::shutdown(fd, 2 /* SHUT_RDWR */);
+        ::shutdown((int)fd, 2 /* SHUT_RDWR */);
 #endif
     }
     if (pthreadClient) {
@@ -183,7 +185,7 @@ void CStratumClient::RunSession()
         boost::asio::ip::tcp::resolver::iterator endpoint_iterator = resolver.resolve(query);
         boost::asio::ip::tcp::socket socket(io_service);
         boost::asio::connect(socket, endpoint_iterator);
-        nSocketFd = (int)socket.native_handle();
+        nSocketFd = (intptr_t)socket.native_handle();
         {
             LOCK(cs_write);
             pSocket = &socket;
