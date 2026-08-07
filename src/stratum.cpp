@@ -1,4 +1,5 @@
-// Copyright (c) 2026 The Offerings Conclave
+// Copyright (c) 2013-2014 The Offerings developers
+// Copyright (c) 2026 The Offerings Conclave / SubGenius.Finance community
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -23,6 +24,7 @@ using namespace json_spirit;
 using namespace std;
 
 CStratumClient* g_pStratumClient = NULL;
+CCriticalSection cs_stratum_control;
 
 CStratumClient::CStratumClient()
     : nPort(0),
@@ -100,6 +102,30 @@ bool CStratumClient::IsConnected() const
 {
     LOCK(cs);
     return fConnected;
+}
+
+std::string CStratumClient::GetHost() const
+{
+    LOCK(cs);
+    return strHost;
+}
+
+int CStratumClient::GetPort() const
+{
+    LOCK(cs);
+    return nPort;
+}
+
+std::string CStratumClient::GetUser() const
+{
+    LOCK(cs);
+    return strUser;
+}
+
+int CStratumClient::GetThreads() const
+{
+    LOCK(cs);
+    return nThreads;
 }
 
 bool CStratumClient::IsAuthorized() const
@@ -584,12 +610,26 @@ bool StartStratumIfConfigured()
         return false;
     }
 
+    return StartStratum(strHost, nPort, strUser, nThreads);
+}
+
+bool StartStratum(const std::string& strHost, int nPort, const std::string& strUser,
+                  int nThreads)
+{
+    LOCK(cs_stratum_control);
+    StopStratum();
     g_pStratumClient = new CStratumClient();
-    return g_pStratumClient->Start(strHost, nPort, strUser, nThreads);
+    if (!g_pStratumClient->Start(strHost, nPort, strUser, nThreads)) {
+        delete g_pStratumClient;
+        g_pStratumClient = NULL;
+        return false;
+    }
+    return true;
 }
 
 void StopStratum()
 {
+    LOCK(cs_stratum_control);
     if (g_pStratumClient) {
         g_pStratumClient->Stop();
         delete g_pStratumClient;
