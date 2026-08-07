@@ -1,5 +1,7 @@
 // Copyright (c) 2010 Satoshi Nakamoto
 // Copyright (c) 2009-2014 The Bitcoin developers
+// Copyright (c) 2013-2014 The Offerings developers
+// Copyright (c) 2026 The Offerings Conclave / SubGenius.Finance community
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -353,6 +355,8 @@ static const CRPCCommand vRPCCommands[] =
     { "mining",             "getblocktemplate",       &getblocktemplate,       true,      false,      false },
     { "mining",             "getmininginfo",          &getmininginfo,          true,      false,      false },
     { "mining",             "getnetworkhashps",       &getnetworkhashps,       true,      false,      false },
+    { "mining",             "getstratuminfo",         &getstratuminfo,         true,      true,       false },
+    { "mining",             "setstratum",             &setstratum,             true,      true,       false },
     { "mining",             "submitblock",            &submitblock,            false,     false,      false },
 
     /* Raw transactions */
