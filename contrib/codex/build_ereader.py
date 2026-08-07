@@ -27,6 +27,52 @@ FOOTER_HTML = """<footer class="site-foot">
 </ul>
 </footer>"""
 
+# SGF-NAV-CONSTANTS
+# The gold button bar from the top of the site index. Kept byte-for-byte in step with
+# contrib/site/index.html — if the release version bumps there, bump it here too.
+# Namespaced .sitenav (NOT .nav) because the codex CSS already owns .nav for the
+# reader's prev/next pager.
+NAV_HTML = """<nav class="sitenav">
+  <span class="sitenav-row">
+    <a class="btn" href="https://explorer.23skidoo.info/" target="_blank" rel="noopener">BLOCK EXPLORER</a>
+    <a class="btn" href="https://pool.23skidoo.info/" target="_blank" rel="noopener">MINING POOL</a>
+    <a class="btn" href="https://github.com/SubGeniusFinance/Offerings-to-Cthulhu" target="_blank" rel="noopener">GITHUB SOURCE</a>
+    <a class="btn" href="https://github.com/SubGeniusFinance/Offerings-to-Cthulhu/releases/download/v2.1.2-Nodens/Offerings-daemon-v2.1.2-Nodens-linux64.tar.gz" target="_blank" rel="noopener">LINUX DAEMON</a>
+    <a class="btn" href="https://github.com/SubGeniusFinance/Offerings-to-Cthulhu/releases/download/v2.1.2-Nodens/Offerings-qt-v2.1.2-Nodens-linux64.tar.gz" target="_blank" rel="noopener">LINUX GUI</a>
+    <a class="btn" href="https://github.com/SubGeniusFinance/Offerings-to-Cthulhu/releases/download/v2.1.2-Nodens/Offerings-v2.1.2-Nodens-win64.zip" target="_blank" rel="noopener">WINDOWS GUI</a>
+  </span>
+  <a class="btn btn-rlyehian" href="/rlyehian/">R&rsquo;LYEHIAN TRANSLATOR &mdash; THE TONGUE OF R&rsquo;LYEH</a>
+</nav>"""
+NAV_CSS = """
+.sitenav{display:flex;flex-direction:column;align-items:center;gap:6px;
+  width:max-content;max-width:100%;margin:.6em auto 1.6em;padding:0 .4em}
+.sitenav-row{display:flex;justify-content:center;gap:5px;flex-wrap:nowrap}
+.sitenav .btn-rlyehian{display:block;width:94%;text-align:center}
+.sitenav .btn{
+  display:inline-block;padding:5px 10px;
+  background:linear-gradient(to bottom,#5a3e00 0%,#a07710 16%,#ffd700 50%,#a07710 84%,#5a3e00 100%);
+  color:#1a1100;
+  font-family:"Trebuchet MS","Segoe UI",Tahoma,sans-serif;
+  font-weight:900;font-size:.72rem;letter-spacing:.03em;
+  text-transform:uppercase;text-decoration:none;
+  border:1px solid rgba(120,80,0,.85);border-radius:4px;
+  text-shadow:0 0 1px rgba(0,0,0,.55);
+  box-shadow:inset 0 1px 0 rgba(255,238,160,.55),inset 0 -1px 0 rgba(60,40,0,.55),
+    0 2px 4px rgba(0,0,0,.55),0 0 14px rgba(255,215,0,.18);
+  transition:filter .15s,box-shadow .15s,transform .1s}
+.sitenav .btn:visited{color:#1a1100}
+.sitenav .btn:hover{
+  filter:brightness(1.08) saturate(1.1);text-decoration:none;
+  box-shadow:inset 0 1px 0 rgba(255,245,180,.7),inset 0 -1px 0 rgba(60,40,0,.5),
+    0 2px 4px rgba(0,0,0,.45),0 0 22px rgba(255,215,0,.4)}
+.sitenav .btn:active{
+  transform:translateY(1px);
+  background:linear-gradient(to bottom,#3a2700 0%,#7a5a08 18%,#c89e10 50%,#7a5a08 82%,#3a2700 100%)}
+@media (max-width:640px){
+  .sitenav{gap:4px;margin:.4em auto 1.2em}
+  .sitenav-row{flex-wrap:wrap}
+  .sitenav .btn{font-size:.7rem;padding:6px 9px;letter-spacing:.03em}}
+"""
 HEADER_CSS = """
 .site-header{text-align:center;margin:0 0 1.4em;padding-top:6px}
 .site-header h1{font-size:2rem;letter-spacing:.04em;margin:0;font-weight:normal;text-shadow:0 0 22px rgba(95,208,160,.4);color:var(--ink,#cfeee0)}
@@ -288,7 +334,8 @@ overall=int(100*ins/len(data)) if len(data) else 0
 ts=time.strftime("%Y-%m-%d %H:%M UTC",time.gmtime())
 idx=f"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="refresh" content="120">
-<title>The Chain Codex — Library</title><style>{CSS}{HEADER_CSS}</style></head><body><div class="wrap">{HEADER_HTML}
+<title>The Chain Codex — Library</title><style>{CSS}{HEADER_CSS}{NAV_CSS}</style></head><body><div class="wrap">{HEADER_HTML}
+{NAV_HTML}
 <h1>The Chain Codex</h1>
 <div class="sub">The public-domain Lovecraft canon, transcribed block by block into the Offerings to Cthulhu ledger.<br>
 Read freely below; each work's bar shows how much has been permanently inscribed on-chain.</div>
