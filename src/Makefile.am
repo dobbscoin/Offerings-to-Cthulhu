@@ -57,6 +57,7 @@ BITCOIN_CORE_H = \
   limitedmap.h \
   main.h \
   miner.h \
+  stratum.h \
   mruset.h \
   netbase.h \
   net.h \
@@ -116,6 +117,7 @@ libbitcoin_server_a_SOURCES = \
   rpcnet.cpp \
   rpcrawtransaction.cpp \
   rpcserver.cpp \
+  stratum.cpp \
   txdb.cpp \
   txmempool.cpp \
   $(JSON_H) \
