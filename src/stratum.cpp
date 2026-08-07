@@ -4,6 +4,9 @@
 
 #include "stratum.h"
 
+#include "core.h"
+#include "hash.h"
+#include "uint256.h"
 #include "util.h"
 
 #include "json/json_spirit_reader_template.h"
@@ -12,6 +15,9 @@
 
 #include <boost/asio.hpp>
 #include <boost/thread.hpp>
+
+#include <cmath>
+#include <cstring>
 
 using namespace json_spirit;
 using namespace std;
@@ -25,6 +31,16 @@ CStratumClient::CStratumClient()
       dDifficulty(0.0),
       nExtraNonce2Size(0),
       nJobsReceived(0),
+      nThreads(0),
+      nSharesSubmitted(0),
+      nSharesAccepted(0),
+      nSharesRejected(0),
+      nHashCounter(0),
+      nHashRateTime(0),
+      nHashRateCount(0),
+      dHashRate(0.0),
+      pSocket(NULL),
+      nSubmitId(10),
       pthreadClient(NULL),
       fShutdown(false),
       nSocketFd(-1)
@@ -36,15 +52,19 @@ CStratumClient::~CStratumClient()
     Stop();
 }
 
-bool CStratumClient::Start(const std::string& strHostIn, int nPortIn, const std::string& strUserIn)
+bool CStratumClient::Start(const std::string& strHostIn, int nPortIn, const std::string& strUserIn,
+                           int nThreadsIn)
 {
     if (pthreadClient)
         return false;
     strHost = strHostIn;
     nPort = nPortIn;
     strUser = strUserIn;
+    nThreads = nThreadsIn;
     fShutdown = false;
     pthreadClient = new boost::thread(boost::bind(&CStratumClient::ThreadStratum, this));
+    for (int i = 0; i < nThreads; i++)
+        vWorkers.push_back(new boost::thread(boost::bind(&CStratumClient::ThreadWorker, this, i)));
     return true;
 }
 
@@ -65,6 +85,11 @@ void CStratumClient::Stop()
         delete pthreadClient;
         pthreadClient = NULL;
     }
+    for (unsigned int i = 0; i < vWorkers.size(); i++) {
+        vWorkers[i]->join();
+        delete vWorkers[i];
+    }
+    vWorkers.clear();
 }
 
 bool CStratumClient::IsRunning() const { return pthreadClient != NULL; }
@@ -159,6 +184,10 @@ void CStratumClient::RunSession()
         boost::asio::ip::tcp::socket socket(io_service);
         boost::asio::connect(socket, endpoint_iterator);
         nSocketFd = (int)socket.native_handle();
+        {
+            LOCK(cs_write);
+            pSocket = &socket;
+        }
 
         {
             LOCK(cs);
@@ -195,8 +224,16 @@ void CStratumClient::RunSession()
                     HandleLine(strLine);
             }
         }
+        {
+            LOCK(cs_write);
+            pSocket = NULL;
+        }
         nSocketFd = -1;
     } catch (const std::exception& e) {
+        {
+            LOCK(cs_write);
+            pSocket = NULL;
+        }
         nSocketFd = -1;
         {
             LOCK(cs);
@@ -301,7 +338,223 @@ void CStratumClient::HandleLine(const std::string& strLine)
             fAuthorized = fOk;
         }
         LogPrintf("stratum: authorize %s for %s\n", fOk ? "ACCEPTED" : "REJECTED", strUser);
+    } else if (nId >= 10) {
+        // response to one of our mining.submit requests
+        bool fOk = (valResult.type() == bool_type) && valResult.get_bool();
+        int64_t nAcc, nRej;
+        {
+            LOCK(cs);
+            if (fOk)
+                nSharesAccepted++;
+            else
+                nSharesRejected++;
+            nAcc = nSharesAccepted;
+            nRej = nSharesRejected;
+        }
+        LogPrintf("stratum: share %s (accepted %d / rejected %d)\n",
+                  fOk ? "ACCEPTED" : "rejected", (int)nAcc, (int)nRej);
     }
+}
+
+bool CStratumClient::SubmitShare(const std::string& strJobId, const std::string& strExtraNonce2,
+                                 const std::string& strNTime, const std::string& strNonce)
+{
+    // Miningcore param order (verified in the pool's BitcoinJobManager):
+    // [worker, jobId, extraNonce2, nTime, nonce] — nTime/nonce exactly 8 hex chars.
+    std::string strLine;
+    {
+        LOCK(cs_write);
+        if (!pSocket)
+            return false;
+        strLine = strprintf(
+            "{\"id\":%d,\"method\":\"mining.submit\",\"params\":[\"%s\",\"%s\",\"%s\",\"%s\",\"%s\"]}\n",
+            nSubmitId++, strUser, strJobId, strExtraNonce2, strNTime, strNonce);
+        try {
+            boost::asio::write(*static_cast<boost::asio::ip::tcp::socket*>(pSocket),
+                               boost::asio::buffer(strLine));
+        } catch (const std::exception& e) {
+            LogPrintf("stratum: submit write failed: %s\n", e.what());
+            return false;
+        }
+    }
+    {
+        LOCK(cs);
+        nSharesSubmitted++;
+    }
+    LogPrint("stratum", "stratum: >>> %s", strLine);
+    return true;
+}
+
+// Bitcoin difficulty-1 target (0x00000000ffff0000…) as a double; Miningcore's
+// share test for this coin is diff1 / quark(header) >= 0.99 * vardiff
+// (shareMultiplier is 1 in the pool's coin definition).
+static const double DIFF1_TARGET = 65535.0 * std::pow(2.0, 208.0);
+
+//! Stratum prevhash (dword-order-reversed RPC hash) → uint256 (internal LE),
+//! per research/stratum-dialect-probe-2026-08-07.md: reversing the 8 words
+//! yields the RPC display hex, which SetHex() then byte-reverses internally.
+static bool ParsePrevHash(const std::string& strStratumHex, uint256& hashOut)
+{
+    if (strStratumHex.size() != 64)
+        return false;
+    std::string strRpcHex;
+    for (int i = 7; i >= 0; i--)
+        strRpcHex += strStratumHex.substr(i * 8, 8);
+    hashOut.SetHex(strRpcHex);
+    return true;
+}
+
+static uint32_t ParseHexBE32(const std::string& strHex)
+{
+    return (uint32_t)strtoul(strHex.c_str(), NULL, 16);
+}
+
+void CStratumClient::ThreadWorker(int nWorkerId)
+{
+    RenameThread("offerings-stratum-worker");
+    LogPrintf("stratum: hash worker %d started\n", nWorkerId);
+
+    uint32_t nEn2Counter = 0;
+
+    while (!fShutdown) {
+        // Snapshot the current work; anything missing → idle and retry.
+        StratumJob job;
+        std::string strEn1;
+        int nEn2Size;
+        double dDiff;
+        int64_t nJobSeq;
+        bool fReady;
+        {
+            LOCK(cs);
+            job = currentJob;
+            strEn1 = strExtraNonce1;
+            nEn2Size = nExtraNonce2Size;
+            dDiff = dDifficulty;
+            nJobSeq = nJobsReceived;
+            fReady = fAuthorized && !job.IsNull() && dDiff > 0.0 && !strEn1.empty();
+        }
+        if (!fReady) {
+            MilliSleep(250);
+            continue;
+        }
+        if (nEn2Size != 4) {
+            // Layout below packs worker id + counter into exactly 4 bytes;
+            // the pool advertises 4. Bail loudly rather than mis-mine.
+            LogPrintf("stratum: unsupported extranonce2_size %d (worker %d idle)\n",
+                      nEn2Size, nWorkerId);
+            MilliSleep(5000);
+            continue;
+        }
+
+        // Unique extranonce2 per (worker, rebuild): 1 byte worker id + 3 byte counter.
+        uint32_t nEn2 = ((uint32_t)nWorkerId << 24) | (nEn2Counter++ & 0x00ffffff);
+        std::string strEn2 = strprintf("%08x", nEn2);
+
+        // coinbase = coinb1 ‖ extranonce1 ‖ extranonce2 ‖ coinb2, txid = sha256d
+        std::vector<unsigned char> vchCoinbase = ParseHex(job.strCoinb1);
+        std::vector<unsigned char> vchEn1 = ParseHex(strEn1);
+        std::vector<unsigned char> vchEn2 = ParseHex(strEn2);
+        std::vector<unsigned char> vchCoinb2 = ParseHex(job.strCoinb2);
+        vchCoinbase.insert(vchCoinbase.end(), vchEn1.begin(), vchEn1.end());
+        vchCoinbase.insert(vchCoinbase.end(), vchEn2.begin(), vchEn2.end());
+        vchCoinbase.insert(vchCoinbase.end(), vchCoinb2.begin(), vchCoinb2.end());
+        uint256 hashMerkleRoot = Hash(vchCoinbase.begin(), vchCoinbase.end());
+
+        // Fold through the branch: root = sha256d(root ‖ branch[i]), branch
+        // hashes arrive as raw-byte hex (no reversal — Miningcore convention).
+        bool fBadBranch = false;
+        for (unsigned int i = 0; i < job.vMerkleBranch.size(); i++) {
+            std::vector<unsigned char> vchBranch = ParseHex(job.vMerkleBranch[i]);
+            if (vchBranch.size() != 32) {
+                fBadBranch = true;
+                break;
+            }
+            uint256 hashBranch;
+            memcpy(BEGIN(hashBranch), &vchBranch[0], 32);
+            hashMerkleRoot = Hash(BEGIN(hashMerkleRoot), END(hashMerkleRoot),
+                                  BEGIN(hashBranch), END(hashBranch));
+        }
+        if (fBadBranch) {
+            LogPrintf("stratum: malformed merkle branch in job %s\n", job.strJobId);
+            MilliSleep(1000);
+            continue;
+        }
+
+        CBlockHeader header;
+        header.nVersion = (int)ParseHexBE32(job.strVersion);
+        if (!ParsePrevHash(job.strPrevHash, header.hashPrevBlock)) {
+            LogPrintf("stratum: malformed prevhash in job %s\n", job.strJobId);
+            MilliSleep(1000);
+            continue;
+        }
+        header.hashMerkleRoot = hashMerkleRoot;
+        header.nTime = ParseHexBE32(job.strNTime);
+        header.nBits = ParseHexBE32(job.strNBits);
+        header.nNonce = 0;
+
+        // Share bound: quark(header) <= diff1/vardiff. Compared in doubles —
+        // plenty for share screening; the pool revalidates every submit.
+        const double dTargetBound = DIFF1_TARGET / dDiff;
+
+        for (uint32_t nNonce = 0; !fShutdown; nNonce++) {
+            header.nNonce = nNonce;
+            uint256 hash = header.GetHash(false);
+            if (hash.getdouble() <= dTargetBound) {
+                LogPrintf("stratum: worker %d found share (job %s, nonce %08x, hash %s)\n",
+                          nWorkerId, job.strJobId, nNonce, hash.GetHex().substr(0, 24));
+                SubmitShare(job.strJobId, strEn2, job.strNTime, strprintf("%08x", nNonce));
+            }
+            if ((nNonce & 0xfff) == 0xfff) {
+                bool fStale;
+                {
+                    LOCK(cs);
+                    nHashCounter += 0x1000;
+                    fStale = (nJobsReceived != nJobSeq);
+                }
+                if (fStale)
+                    break; // re-snapshot: new job (and a fresh extranonce2)
+            }
+            if (nNonce == 0xffffffff)
+                break; // nonce space exhausted: roll extranonce2
+        }
+    }
+    LogPrintf("stratum: hash worker %d exiting\n", nWorkerId);
+}
+
+int64_t CStratumClient::GetSharesSubmitted() const
+{
+    LOCK(cs);
+    return nSharesSubmitted;
+}
+
+int64_t CStratumClient::GetSharesAccepted() const
+{
+    LOCK(cs);
+    return nSharesAccepted;
+}
+
+int64_t CStratumClient::GetSharesRejected() const
+{
+    LOCK(cs);
+    return nSharesRejected;
+}
+
+double CStratumClient::GetHashRate() const
+{
+    LOCK(cs);
+    int64_t nNow = GetTimeMillis();
+    if (nHashRateTime == 0) {
+        // first call: establish the baseline
+        nHashRateTime = nNow;
+        nHashRateCount = nHashCounter;
+        return 0.0;
+    }
+    if (nNow - nHashRateTime >= 5000) {
+        dHashRate = (double)(nHashCounter - nHashRateCount) * 1000.0 / (double)(nNow - nHashRateTime);
+        nHashRateTime = nNow;
+        nHashRateCount = nHashCounter;
+    }
+    return dHashRate;
 }
 
 bool StartStratumIfConfigured()
@@ -323,8 +576,14 @@ bool StartStratumIfConfigured()
         return false;
     }
 
+    int nThreads = (int)GetArg("-stratumthreads", 1);
+    if (nThreads < 0 || nThreads > 64) {
+        LogPrintf("stratum: invalid -stratumthreads=%d\n", nThreads);
+        return false;
+    }
+
     g_pStratumClient = new CStratumClient();
-    return g_pStratumClient->Start(strHost, nPort, strUser);
+    return g_pStratumClient->Start(strHost, nPort, strUser, nThreads);
 }
 
 void StopStratum()
