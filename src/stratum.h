@@ -1,4 +1,5 @@
-// Copyright (c) 2026 The Offerings Conclave
+// Copyright (c) 2013-2014 The Offerings developers
+// Copyright (c) 2026 The Offerings Conclave / SubGenius.Finance community
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -56,6 +57,10 @@ public:
     bool IsRunning() const;
     bool IsConnected() const;
     bool IsAuthorized() const;
+    std::string GetHost() const;
+    int GetPort() const;
+    std::string GetUser() const;
+    int GetThreads() const;
     double GetDifficulty() const;
     std::string GetExtraNonce1() const;
     int GetExtraNonce2Size() const;
@@ -123,11 +128,20 @@ private:
 };
 
 /** Global client instance driven by -stratum=<host:port> / -stratumuser=<Q-address>
- *  (hidden debug args; see init.cpp). NULL when not enabled. */
+ *  / -stratumthreads=<n>, the setstratum RPC, or the GUI Mining tab.
+ *  NULL when not enabled. */
 extern CStratumClient* g_pStratumClient;
+
+/** Guards create/destroy of g_pStratumClient (GUI toggle, setstratum RPC and
+ *  shutdown can race). Hold it across any read of the pointer too. */
+extern CCriticalSection cs_stratum_control;
 
 //! Called from init: start the global client if -stratum is configured.
 bool StartStratumIfConfigured();
+//! Stop any existing global client and start a fresh one from the given
+//! settings. Returns false if the client fails to launch.
+bool StartStratum(const std::string& strHost, int nPort, const std::string& strUser,
+                  int nThreads);
 //! Called from shutdown: stop and delete the global client if running.
 void StopStratum();
 

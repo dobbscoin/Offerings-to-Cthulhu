@@ -1,5 +1,7 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2014 The Bitcoin developers
+// Copyright (c) 2013-2014 The Offerings developers
+// Copyright (c) 2026 The Offerings Conclave / SubGenius.Finance community
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -272,6 +274,9 @@ std::string HelpMessage(HelpMessageMode hmm)
     strUsage += "  -gen                   " + _("Generate coins (default: 0)") + "\n";
     strUsage += "  -genproclimit=<n>      " + _("Set the processor limit for when generation is on (-1 = unlimited, default: -1)") + "\n";
     strUsage += "  -miningaddress=<addr>  " + _("Pay solo-mining rewards to this fixed Offerings address instead of a fresh keypool key each block. Empty (default) preserves historical per-block-rotation behavior.") + "\n";
+    strUsage += "  -stratum=<host:port>   " + _("Mine to a stratum pool at <host:port> on startup (also see setstratum RPC)") + "\n";
+    strUsage += "  -stratumuser=<addr>    " + _("Offerings address the pool pays out to (required with -stratum)") + "\n";
+    strUsage += "  -stratumthreads=<n>    " + _("Number of pool-mining worker threads (default: 1, 0 = protocol only)") + "\n";
     strUsage += "  -help-debug            " + _("Show all debugging options (usage: --help -help-debug)") + "\n";
     strUsage += "  -logtimestamps         " + _("Prepend debug output with timestamp (default: 1)") + "\n";
     if (GetBoolArg("-help-debug", false))
@@ -1137,8 +1142,8 @@ bool AppInit2(boost::thread_group& threadGroup)
         GenerateBitcoins(GetBoolArg("-gen", false), pwalletMain, GetArg("-genproclimit", -1));
 #endif
 
-    // Hidden debug args: -stratum=<host:port> -stratumuser=<Q-address>
-    // (issue #8 pool-mode groundwork; protocol layer only, no hashing yet)
+    // In-wallet pool mining: -stratum=<host:port> -stratumuser=<Q-address>
+    // -stratumthreads=<n>. Also controllable at runtime via the setstratum RPC.
     if (!StartStratumIfConfigured())
         return InitError(_("Invalid -stratum / -stratumuser configuration"));
 

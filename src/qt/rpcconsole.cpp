@@ -1,4 +1,6 @@
 // Copyright (c) 2011-2014 The Bitcoin developers
+// Copyright (c) 2013-2014 The Offerings developers
+// Copyright (c) 2026 The Offerings Conclave / SubGenius.Finance community
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -663,11 +665,17 @@ void RPCConsole::on_poolMiningToggle_clicked(bool checked)
     }
 
     // Replace any prior client (also covers a client left over from
-    // -stratum command-line args) with one built from the form.
-    StopStratum();
-    g_pStratumClient = new CStratumClient();
-    g_pStratumClient->Start(strHost.toStdString(), nPort, strAddress.toStdString(),
-                            ui->poolMiningThreads->value());
+    // -stratum command-line args or the setstratum RPC) with one built
+    // from the form.
+    if (!StartStratum(strHost.toStdString(), nPort, strAddress.toStdString(),
+                      ui->poolMiningThreads->value()))
+    {
+        ui->poolMiningToggle->blockSignals(true);
+        ui->poolMiningToggle->setChecked(false);
+        ui->poolMiningToggle->blockSignals(false);
+        ui->poolMiningStatus->setText(tr("Failed to start the pool client."));
+        return;
+    }
 
     QSettings settings;
     settings.setValue("poolMiningEndpoint", strEndpoint);
