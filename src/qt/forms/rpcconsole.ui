@@ -1120,6 +1120,137 @@
         </widget>
        </item>
        <item>
+        <widget class="Line" name="miningSep2">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="poolMiningHeader">
+         <property name="font">
+          <font>
+           <weight>75</weight>
+           <bold>true</bold>
+          </font>
+         </property>
+         <property name="text">
+          <string>Pool Mining — The Communal Rite</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="poolMiningHelp">
+         <property name="text">
+          <string>The pool is a congregation: many small offerings folded into one, tallied in shares, paid to the address you name. The congregation's blocks carry the Conclave's voice, so the communal rite continues even when solo mining is barred.</string>
+         </property>
+         <property name="wordWrap">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="poolMiningEndpointRow">
+         <item>
+          <widget class="QLabel" name="poolMiningEndpointLabel">
+           <property name="text">
+            <string>Pool:</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLineEdit" name="poolMiningEndpoint">
+           <property name="text">
+            <string>pool.23skidoo.info:3040</string>
+           </property>
+           <property name="placeholderText">
+            <string>host:port</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="poolMiningAddressRow">
+         <item>
+          <widget class="QLabel" name="poolMiningAddressLabel">
+           <property name="text">
+            <string>Pay-to address:</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLineEdit" name="poolMiningAddress">
+           <property name="placeholderText">
+            <string>Your OFF address (starts with Q)</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="poolMiningThreadsRow">
+         <item>
+          <widget class="QLabel" name="poolMiningThreadsLabel">
+           <property name="text">
+            <string>CPU threads:</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QSpinBox" name="poolMiningThreads">
+           <property name="minimum">
+            <number>1</number>
+           </property>
+           <property name="maximum">
+            <number>256</number>
+           </property>
+           <property name="value">
+            <number>1</number>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="poolMiningToggle">
+           <property name="checkable">
+            <bool>true</bool>
+           </property>
+           <property name="text">
+            <string>Start Pool Mining</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="poolMiningThreadsSpacer">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <widget class="QLabel" name="poolMiningStatus">
+         <property name="font">
+          <font>
+           <italic>true</italic>
+          </font>
+         </property>
+         <property name="text">
+          <string>Pool mining stopped.</string>
+         </property>
+         <property name="textInteractionFlags">
+          <set>Qt::TextSelectableByMouse</set>
+         </property>
+        </widget>
+       </item>
+       <item>
         <spacer name="miningVerticalSpacer">
          <property name="orientation">
           <enum>Qt::Vertical</enum>
