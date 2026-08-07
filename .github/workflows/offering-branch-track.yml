@@ -1,0 +1,82 @@
+name: Track main on the offering branch
+
+# Keeps feat/issue-8-mining-tab-solo — the standalone opt-in "offering" build
+# lineage (Mining tab + in-wallet stratum) — riding on top of main without
+# ever merging into it. On every push to main:
+#
+#   1. rebase the offering branch onto the new main (force-with-lease)
+#   2. stamp a wallet-mining-<main-sha> tag on the rebased head
+#   3. dispatch the three build workflows at that tag, because tags pushed
+#      with GITHUB_TOKEN do not fire tag-triggered workflows on their own
+#
+# Result: every advance of main automatically yields fresh Win64/Linux
+# artifacts equal to "current main + the miner commits", with provenance in
+# the tag name. If the rebase ever conflicts, the run fails and a comment is
+# posted on issue #8 for a human to resolve — pushes to main are never
+# blocked by this workflow.
+#
+# Maintenance rule for the offering branch: it is rebased-and-force-pushed by
+# this workflow. Never commit to it without pulling/rebasing first.
+
+on:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: write
+  actions: write
+  issues: write
+
+concurrency:
+  group: offering-branch-track
+  cancel-in-progress: false
+
+env:
+  OFFERING_BRANCH: feat/issue-8-mining-tab-solo
+
+jobs:
+  rebase-tag-dispatch:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout offering branch (full history)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.OFFERING_BRANCH }}
+          fetch-depth: 0
+
+      - name: Rebase onto main
+        id: rebase
+        run: |
+          git config user.name "MWOWM"
+          git config user.email "mwowm@subgenius.net"
+          git fetch origin main
+          echo "mainsha=$(git rev-parse --short origin/main)" >> "$GITHUB_OUTPUT"
+          git rebase origin/main
+
+      - name: Push branch and build tag
+        id: tag
+        run: |
+          TAG="wallet-mining-${{ steps.rebase.outputs.mainsha }}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          git push --force-with-lease origin "$OFFERING_BRANCH"
+          git tag -f "$TAG"
+          git push -f origin "refs/tags/$TAG"
+
+      - name: Dispatch build workflows at the tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for wf in linux-build-depends.yml linux-qt5-build-depends.yml windows-build-depends.yml; do
+            gh workflow run "$wf" --ref "${{ steps.tag.outputs.tag }}" -R "$GITHUB_REPOSITORY"
+          done
+          echo "Dispatched builds at ${{ steps.tag.outputs.tag }}"
+
+      - name: Flag rebase conflict on issue 8
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue comment 8 -R "$GITHUB_REPOSITORY" --body \
+            "Automatic rebase of \`$OFFERING_BRANCH\` onto main failed for \
+          ${{ github.sha }} — manual rebase needed before the next offering build. \
+          Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
