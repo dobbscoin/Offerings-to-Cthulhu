@@ -63,6 +63,9 @@ private slots:
     void on_miningThreads_valueChanged(int value);
     /** Polled from a QTimer while the tab is visible; refreshes the live status line. */
     void updateMiningStatus();
+    /** Mining tab — pool mode (in-wallet stratum client, issue #8 phase 3) */
+    void on_poolMiningToggle_clicked(bool checked);
+    void updatePoolMiningStatus();
 
 public slots:
     void clear();
