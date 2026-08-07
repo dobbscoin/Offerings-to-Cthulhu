@@ -117,8 +117,9 @@ private:
     boost::thread* pthreadClient;
     std::vector<boost::thread*> vWorkers;
     volatile bool fShutdown;
-    //! Raw fd of the live socket so Stop() can unblock a blocking read.
-    volatile int nSocketFd;
+    //! Raw handle of the live socket so Stop() can unblock a blocking read
+    //! (intptr_t: Winsock SOCKET is pointer-sized, not int).
+    volatile intptr_t nSocketFd;
 };
 
 /** Global client instance driven by -stratum=<host:port> / -stratumuser=<Q-address>
