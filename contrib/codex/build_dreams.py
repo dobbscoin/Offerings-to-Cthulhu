@@ -46,6 +46,20 @@ for h in range(start, tip + 1):
         pass
 cache["scanned"] = tip
 cache["dreams"] = cache["dreams"][-200:]
+
+# English gloss via the site translator's own decoder (cached per verse)
+untranslated = [d for d in cache["dreams"] if "e" not in d]
+if untranslated:
+    try:
+        js = os.path.join(os.path.dirname(os.path.abspath(__file__)), "dreams_translate.js")
+        eng = json.loads(subprocess.run(
+            ["node", js], input=json.dumps([d["t"] for d in untranslated]),
+            capture_output=True, text=True, timeout=60, check=True).stdout)
+        for d, e in zip(untranslated, eng):
+            d["e"] = e
+    except Exception as ex:
+        print("translate skipped:", ex)
+
 json.dump(cache, open(CACHE + ".tmp", "w")); os.replace(CACHE + ".tmp", CACHE)
 
 out = {"tip": tip, "dreams": list(reversed(cache["dreams"][-KEEP:]))}
