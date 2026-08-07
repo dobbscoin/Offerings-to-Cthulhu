@@ -1,15 +1,19 @@
 // Copyright (c) 2010 Satoshi Nakamoto
 // Copyright (c) 2009-2013 The Bitcoin developers
+// Copyright (c) 2013-2014 The Offerings developers
+// Copyright (c) 2026 The Offerings Conclave / SubGenius.Finance community
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "rpcserver.h"
+#include "base58.h"
 #include "chainparams.h"
 #include "pow.h"
 #include "init.h"
 #include "net.h"
 #include "main.h"
 #include "miner.h"
+#include "stratum.h"
 #ifdef ENABLE_WALLET
 #include "db.h"
 #include "wallet.h"
@@ -272,6 +276,122 @@ Value getmininginfo(const Array& params, bool fHelp)
     obj.push_back(Pair("hashespersec",     gethashespersec(params, false)));
 #endif
     return obj;
+}
+
+Value getstratuminfo(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 0)
+        throw runtime_error(
+            "getstratuminfo\n"
+            "\nReturns a json object describing the in-wallet stratum pool-mining client.\n"
+            "\nResult (when pool mining is off):\n"
+            "{\n"
+            "  \"running\": false\n"
+            "}\n"
+            "\nResult (when pool mining is on):\n"
+            "{\n"
+            "  \"running\": true,\n"
+            "  \"pool\": \"host:port\",       (string) The pool endpoint\n"
+            "  \"user\": \"address\",         (string) The payout address (pool-side username)\n"
+            "  \"threads\": n,              (numeric) Worker threads grinding hashes\n"
+            "  \"connected\": true|false,   (boolean) TCP session with the pool is up\n"
+            "  \"authorized\": true|false,  (boolean) The pool accepted the payout address\n"
+            "  \"sharedifficulty\": xxx,    (numeric) Current vardiff share difficulty\n"
+            "  \"jobsreceived\": n,         (numeric) mining.notify jobs received\n"
+            "  \"hashespersec\": n,         (numeric) Hashes per second across all workers\n"
+            "  \"sharessubmitted\": n,      (numeric) Shares sent to the pool\n"
+            "  \"sharesaccepted\": n,       (numeric) Shares the pool accepted\n"
+            "  \"sharesrejected\": n,       (numeric) Shares the pool rejected\n"
+            "  \"errors\": \"...\"            (string) Last connection error, if any\n"
+            "}\n"
+            "\nExamples:\n"
+            + HelpExampleCli("getstratuminfo", "")
+            + HelpExampleRpc("getstratuminfo", "")
+        );
+
+    LOCK(cs_stratum_control);
+    Object obj;
+    if (!g_pStratumClient || !g_pStratumClient->IsRunning()) {
+        obj.push_back(Pair("running", false));
+        return obj;
+    }
+    obj.push_back(Pair("running",         true));
+    obj.push_back(Pair("pool",            strprintf("%s:%d", g_pStratumClient->GetHost(),
+                                                    g_pStratumClient->GetPort())));
+    obj.push_back(Pair("user",            g_pStratumClient->GetUser()));
+    obj.push_back(Pair("threads",         g_pStratumClient->GetThreads()));
+    obj.push_back(Pair("connected",       g_pStratumClient->IsConnected()));
+    obj.push_back(Pair("authorized",      g_pStratumClient->IsAuthorized()));
+    obj.push_back(Pair("sharedifficulty", g_pStratumClient->GetDifficulty()));
+    obj.push_back(Pair("jobsreceived",    g_pStratumClient->GetJobsReceived()));
+    obj.push_back(Pair("hashespersec",    g_pStratumClient->GetHashRate()));
+    obj.push_back(Pair("sharessubmitted", g_pStratumClient->GetSharesSubmitted()));
+    obj.push_back(Pair("sharesaccepted",  g_pStratumClient->GetSharesAccepted()));
+    obj.push_back(Pair("sharesrejected",  g_pStratumClient->GetSharesRejected()));
+    obj.push_back(Pair("errors",          g_pStratumClient->GetLastError()));
+    return obj;
+}
+
+Value setstratum(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() < 1 || params.size() > 4)
+        throw runtime_error(
+            "setstratum enable ( \"pool\" \"payoutaddress\" threads )\n"
+            "\nStart or stop mining to a stratum pool, like the GUI Mining tab's pool section.\n"
+            "Replaces any pool client already running (from -stratum args, the GUI, or a\n"
+            "previous setstratum). Unlike solo generation this needs no wallet: rewards go\n"
+            "to the payout address at the pool. See getstratuminfo for live status.\n"
+            "\nArguments:\n"
+            "1. enable          (boolean, required) true to start pool mining, false to stop.\n"
+            "2. pool            (string, required when enabling) The pool endpoint as host:port.\n"
+            "3. payoutaddress   (string, required when enabling) Offerings address the pool pays\n"
+            "                   out to. A \".worker\" suffix after the address is passed through.\n"
+            "4. threads         (numeric, optional, default: 1) Worker threads, 0 = protocol only.\n"
+            "\nResult: the getstratuminfo object.\n"
+            "\nExamples:\n"
+            "\nMine to the public pool with two threads\n"
+            + HelpExampleCli("setstratum", "true \"pool.23skidoo.info:3040\" \"QYourAddress\" 2") +
+            "\nStop pool mining\n"
+            + HelpExampleCli("setstratum", "false") +
+            "\nUsing json rpc\n"
+            + HelpExampleRpc("setstratum", "true, \"pool.23skidoo.info:3040\", \"QYourAddress\", 2")
+        );
+
+    bool fEnable = params[0].get_bool();
+    if (!fEnable) {
+        StopStratum();
+        return getstratuminfo(Array(), false);
+    }
+
+    if (params.size() < 3)
+        throw JSONRPCError(RPC_INVALID_PARAMETER,
+                           "Enabling needs a pool (host:port) and a payout address");
+
+    std::string strEndpoint = params[1].get_str();
+    size_t colon = strEndpoint.rfind(':');
+    std::string strHost = (colon != std::string::npos) ? strEndpoint.substr(0, colon) : "";
+    int nPort = (colon != std::string::npos) ? atoi(strEndpoint.substr(colon + 1).c_str()) : 0;
+    if (strHost.empty() || nPort <= 0 || nPort > 65535)
+        throw JSONRPCError(RPC_INVALID_PARAMETER, "Pool must be host:port");
+
+    // Validate the address part (anything before an optional .worker suffix).
+    std::string strUser = params[2].get_str();
+    std::string strAddrPart = strUser.substr(0, strUser.find('.'));
+    if (!CBitcoinAddress(strAddrPart).IsValid())
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY,
+                           "Invalid Offerings payout address: " + strAddrPart);
+
+    int nThreads = 1;
+    if (params.size() > 3) {
+        nThreads = params[3].get_int();
+        if (nThreads < 0 || nThreads > 64)
+            throw JSONRPCError(RPC_INVALID_PARAMETER, "threads must be 0-64");
+    }
+
+    if (!StartStratum(strHost, nPort, strUser, nThreads))
+        throw JSONRPCError(RPC_INTERNAL_ERROR, "Failed to start the stratum client");
+
+    return getstratuminfo(Array(), false);
 }
 
 
