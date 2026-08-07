@@ -1,0 +1,91 @@
+<!-- Dream-bubbles page snippet — REMOVED from the live 23skidoo.info index
+     2026-08-07 at btcbob's request ("its cool.. dont loose the code.. but revert").
+     To re-enable: paste the <style> content into the page CSS, the <script> before
+     </body>, re-enable the build_dreams.py cron (crontab), and the bubbles return.
+     Data pipeline (still in repo): contrib/codex/build_dreams.py +
+     contrib/codex/dreams_translate.js -> /static/dreams.json -->
+<style>
+  /* ── the Dreaming, bubbling up from the deep ─────────────────────── */
+  #dreamsea { position:fixed; inset:0; pointer-events:none; z-index:30; overflow:hidden; }
+  .dream-bubble {
+    position:absolute; bottom:-5em; left:var(--x);
+    max-width:min(46ch, 88vw); text-align:center;
+    font-family:Georgia,"Times New Roman",serif; font-style:italic;
+    font-size:clamp(1.35rem, 3.2vw, 2.1rem); line-height:1.25;
+    color:#aef7d9; opacity:0;
+    text-shadow:0 0 18px rgba(0,140,105,.95), 0 0 6px rgba(0,0,0,.9), 0 2px 4px rgba(0,0,0,.8);
+    animation:dreamrise var(--dur) linear forwards;
+  }
+  .dream-bubble .dream-english {
+    display:block; margin-top:.28em;
+    font-style:normal; font-size:.6em; line-height:1.3;
+    color:rgba(232,246,240,.92);
+    text-shadow:0 0 8px rgba(0,60,45,.9), 0 1px 3px rgba(0,0,0,.9);
+  }
+  .dream-bubble .dream-block {
+    display:block; margin-top:.3em;
+    font-style:normal; font-size:.55em; letter-spacing:.12em;
+    color:#ffd700; text-shadow:0 0 12px rgba(255,180,0,.7), 0 0 3px rgba(0,0,0,.9);
+  }
+  @keyframes dreamrise {
+    0%   { transform:translateY(0)      translateX(0);      opacity:0; }
+    7%   { opacity:.9; }
+    45%  { transform:translateY(-52vh)  translateX(1.2em); opacity:.85; }
+    80%  { opacity:.6; }
+    100% { transform:translateY(-118vh) translateX(-1em);  opacity:0; }
+  }
+  @media (prefers-reduced-motion: reduce) { #dreamsea { display:none; } }
+</style>
+
+<script>
+/* The Dreaming — each pool block's R'lyehian verse bubbles up from the deep. */
+(function () {
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  var sea = document.createElement('div');
+  sea.id = 'dreamsea'; sea.setAttribute('aria-hidden', 'true');
+  document.body.appendChild(sea);
+
+  var lastSeen = 0;
+  function spawn(d) {
+    if (document.hidden) return;
+    var el = document.createElement('span');
+    el.className = 'dream-bubble';
+    el.appendChild(document.createTextNode(d.t));
+    if (d.e) {
+      var en = document.createElement('span');
+      en.className = 'dream-english';
+      en.textContent = '“' + d.e + '”';
+      el.appendChild(en);
+    }
+    var tag = document.createElement('span');
+    tag.className = 'dream-block';
+    tag.textContent = 'BLOCK ' + d.h.toLocaleString();
+    el.appendChild(tag);
+    el.style.setProperty('--x', (6 + Math.random() * 55) + 'vw');
+    el.style.setProperty('--dur', (30 + Math.random() * 12) + 's');
+    sea.appendChild(el);
+    el.addEventListener('animationend', function () { el.remove(); });
+  }
+  function load() {
+    fetch('/static/dreams.json', { cache: 'no-store' })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        var dreams = (j.dreams || []).slice().sort(function (a, b) { return a.h - b.h; });
+        if (!dreams.length) return;
+        if (!lastSeen) {
+          // first load: surface only the newest verse, then wait for real blocks
+          lastSeen = dreams[dreams.length - 1].h - 1;
+        }
+        var fresh = dreams.filter(function (d) { return d.h > lastSeen; });
+        lastSeen = dreams[dreams.length - 1].h;
+        // one bubble per new block, staggered a few seconds apart
+        fresh.slice(-5).forEach(function (d, i) {
+          setTimeout(function () { spawn(d); }, 1500 + i * 9000);
+        });
+      })
+      .catch(function () {});
+  }
+  load();
+  setInterval(load, 60000);
+})();
+</script>
