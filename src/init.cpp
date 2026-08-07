@@ -14,6 +14,7 @@
 #include "checkpoints.h"
 #include "main.h"
 #include "miner.h"
+#include "stratum.h"
 #include "net.h"
 #include "rpcserver.h"
 #include "txdb.h"
@@ -114,6 +115,7 @@ void Shutdown()
 
     RenameThread("bitcoin-shutoff");
     mempool.AddTransactionsUpdated(1);
+    StopStratum();
     StopRPCThreads();
     ShutdownRPCMining();
 #ifdef ENABLE_WALLET
@@ -1123,6 +1125,11 @@ bool AppInit2(boost::thread_group& threadGroup)
     if (pwalletMain)
         GenerateBitcoins(GetBoolArg("-gen", false), pwalletMain, GetArg("-genproclimit", -1));
 #endif
+
+    // Hidden debug args: -stratum=<host:port> -stratumuser=<Q-address>
+    // (issue #8 pool-mode groundwork; protocol layer only, no hashing yet)
+    if (!StartStratumIfConfigured())
+        return InitError(_("Invalid -stratum / -stratumuser configuration"));
 
     // ********************************************************* Step 12: finished
 
