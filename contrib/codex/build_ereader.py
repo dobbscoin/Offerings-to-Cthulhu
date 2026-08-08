@@ -28,26 +28,49 @@ FOOTER_HTML = """<footer class="site-foot">
 </footer>"""
 
 # SGF-NAV-CONSTANTS
-# The gold button bar from the top of the site index. Kept byte-for-byte in step with
-# contrib/site/index.html — if the release version bumps there, bump it here too.
-# Namespaced .sitenav (NOT .nav) because the codex CSS already owns .nav for the
-# reader's prev/next pager.
-NAV_HTML = """<nav class="sitenav">
+# The gold button bar at the top of the site index, lifted at build time out of the
+# live page itself — SITE_INDEX is the single source of truth for these buttons, so a
+# release-version bump there reaches the codex on the next cron tick with no second edit.
+# (The docroot copy, not contrib/site/index.html: the site index is maintained live and
+# the repo copy has drifted behind it.)
+# Namespaced .sitenav / .sitenav-row because the codex CSS already owns .nav and
+# .nav button for the reader's prev/next pager.
+SITE_INDEX = "/var/www/23skidoo.info/index.html"
+
+# Only reached if the site index is unreadable or its markup stops matching. Deliberately
+# version-free so a stale fallback can never advertise a download that has been superseded.
+NAV_FALLBACK = """<nav class="sitenav">
   <span class="sitenav-row">
     <a class="btn" href="https://explorer.23skidoo.info/" target="_blank" rel="noopener">BLOCK EXPLORER</a>
     <a class="btn" href="https://pool.23skidoo.info/" target="_blank" rel="noopener">MINING POOL</a>
     <a class="btn" href="https://github.com/SubGeniusFinance/Offerings-to-Cthulhu" target="_blank" rel="noopener">GITHUB SOURCE</a>
-    <a class="btn" href="https://github.com/SubGeniusFinance/Offerings-to-Cthulhu/releases/download/v2.1.2-Nodens/Offerings-daemon-v2.1.2-Nodens-linux64.tar.gz" target="_blank" rel="noopener">LINUX DAEMON</a>
-    <a class="btn" href="https://github.com/SubGeniusFinance/Offerings-to-Cthulhu/releases/download/v2.1.2-Nodens/Offerings-qt-v2.1.2-Nodens-linux64.tar.gz" target="_blank" rel="noopener">LINUX GUI</a>
-    <a class="btn" href="https://github.com/SubGeniusFinance/Offerings-to-Cthulhu/releases/download/v2.1.2-Nodens/Offerings-v2.1.2-Nodens-win64.zip" target="_blank" rel="noopener">WINDOWS GUI</a>
+    <a class="btn" href="https://github.com/SubGeniusFinance/Offerings-to-Cthulhu/releases/latest" target="_blank" rel="noopener">WALLETS</a>
   </span>
-  <a class="btn btn-rlyehian" href="/rlyehian/">R&rsquo;LYEHIAN TRANSLATOR &mdash; THE TONGUE OF R&rsquo;LYEH</a>
+  <a class="btn btn-rlyehian" href="/rlyehian/">R&rsquo;LYEHIAN TRANSLATOR</a>
 </nav>"""
+
+def site_nav_html():
+    """Return the site index's <nav> block, re-namespaced for the codex."""
+    try:
+        m = re.search(r'<nav class="nav">.*?</nav>',
+                      open(SITE_INDEX, encoding="utf-8").read(), re.S)
+        if not m:
+            return NAV_FALLBACK
+        return (m.group(0)
+                .replace('<nav class="nav">', '<nav class="sitenav">')
+                .replace('class="nav-row"', 'class="sitenav-row"'))
+    except Exception:
+        return NAV_FALLBACK
+
+NAV_HTML = site_nav_html()
+
+# Laid out so it survives either shape of the source markup: buttons wrapped in a
+# .sitenav-row span, or dropped straight into the <nav> as they were before 2026-08.
 NAV_CSS = """
-.sitenav{display:flex;flex-direction:column;align-items:center;gap:6px;
-  width:max-content;max-width:100%;margin:.6em auto 1.6em;padding:0 .4em}
-.sitenav-row{display:flex;justify-content:center;gap:5px;flex-wrap:nowrap}
-.sitenav .btn-rlyehian{display:block;width:94%;text-align:center}
+.sitenav{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:5px;
+  max-width:760px;margin:.6em auto 1.6em;padding:0 .4em}
+.sitenav-row{display:flex;flex-basis:100%;justify-content:center;gap:5px;flex-wrap:wrap}
+.sitenav .btn-rlyehian{flex-basis:94%;text-align:center}
 .sitenav .btn{
   display:inline-block;padding:5px 10px;
   background:linear-gradient(to bottom,#5a3e00 0%,#a07710 16%,#ffd700 50%,#a07710 84%,#5a3e00 100%);
