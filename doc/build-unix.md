@@ -19,28 +19,19 @@ Dependencies
  libssl      | SSL Support      | Secure communications
  libdb4.8    | Berkeley DB      | Wallet storage
  libboost    | Boost            | C++ Library
- libnatpmp   | NAT-PMP Support  | Optional firewall-jumping support
  qt          | GUI              | GUI toolkit
  protobuf    | Payments in GUI  | Data interchange format used for payment protocol
  libqrencode | QR codes in GUI  | Optional for generating QR codes
 
-[libnatpmp](http://miniupnp.free.fr/libnatpmp.html) may be used for NAT-PMP port
-mapping.  It can be downloaded from [here](http://miniupnp.tuxfamily.org/files/).
-NAT-PMP support is compiled in and turned off by default.  See the configure
-options for the port-mapping behavior desired:
-
-	--without-natpmp          No NAT-PMP support, libnatpmp not required
-	--disable-natpmp-default  (the default) NAT-PMP support turned off by default at runtime
-	--enable-natpmp-default   NAT-PMP support turned on by default at runtime
-
-NAT-PMP replaced UPnP (issue #37).  The `-upnp` startup flag is still accepted
-as a deprecated alias for `-natpmp`.
+The client does no automatic router port mapping.  If you want inbound
+connections, forward the P2P port on your router yourself.  The `-upnp` and
+`-natpmp` flags no longer exist; port-mapping support lives only in the
+opt-in "offering" build lineage, not in stock releases.
 
 Licenses of statically linked libraries:
  Berkeley DB   New BSD license with additional requirement that linked
                software must be free open source
  Boost         MIT-like license
- libnatpmp     New (3-clause) BSD license
 
 - For the versions used in the release, see doc/release-process.md under *Fetch and build inputs*.
 
@@ -94,7 +85,6 @@ for other Ubuntu & Debian:
 
 Optional:
 
-	sudo apt-get install libnatpmp-dev (see --with-natpmp and --enable-natpmp-default)
 
 Dependencies for the GUI: Ubuntu & Debian
 -----------------------------------------
@@ -124,14 +114,6 @@ Notes
 The release is built with GCC and then "strip bitcoind" to strip the debug
 symbols, which reduces the executable size by about 90%.
 
-
-libnatpmp
----------
-	tar -xzvf libnatpmp-20230423.tar.gz
-	cd libnatpmp-20230423
-	make
-	sudo su
-	make install
 
 
 Berkeley DB

@@ -119,15 +119,6 @@ void OptionsModel::Init()
 #endif
 
     // Network
-    // Default port mapping off at startup regardless of the compile-time
-    // USE_NATPMP default; the user can still enable it via the options dialog.
-    // NAT-PMP replaced UPnP (#37), so carry a pre-existing fUseUPnP choice over
-    // once rather than silently switching port mapping off on upgrade.
-    if (!settings.contains("fUseNatpmp"))
-        settings.setValue("fUseNatpmp", settings.value("fUseUPnP", false).toBool());
-    if (!SoftSetBoolArg("-natpmp", settings.value("fUseNatpmp").toBool()))
-        addOverriddenOption("-natpmp");
-
     if (!settings.contains("fUseProxy"))
         settings.setValue("fUseProxy", false);
     if (!settings.contains("addrProxy"))
@@ -190,12 +181,6 @@ QVariant OptionsModel::data(const QModelIndex & index, int role) const
             return GUIUtil::GetStartOnSystemStartup();
         case MinimizeToTray:
             return fMinimizeToTray;
-        case MapPortNatpmp:
-#ifdef USE_NATPMP
-            return settings.value("fUseNatpmp");
-#else
-            return false;
-#endif
         case MinimizeOnClose:
             return fMinimizeOnClose;
 
@@ -271,10 +256,6 @@ bool OptionsModel::setData(const QModelIndex & index, const QVariant & value, in
         case MinimizeToTray:
             fMinimizeToTray = value.toBool();
             settings.setValue("fMinimizeToTray", fMinimizeToTray);
-            break;
-        case MapPortNatpmp: // core option - can be changed on-the-fly
-            settings.setValue("fUseNatpmp", value.toBool());
-            MapPort(value.toBool());
             break;
         case MinimizeOnClose:
             fMinimizeOnClose = value.toBool();

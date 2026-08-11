@@ -46,7 +46,7 @@ Instructions: MacPorts
 
 Installing the dependencies using MacPorts is very straightforward.
 
-    sudo port install boost db48@+no_java openssl libnatpmp autoconf pkgconfig automake
+    sudo port install boost db48@+no_java openssl autoconf pkgconfig automake
 
 Optional: install Qt4
 
@@ -74,7 +74,7 @@ Instructions: Homebrew
 
 #### Install dependencies using Homebrew
 
-        brew install autoconf automake berkeley-db4 boost libnatpmp openssl pkg-config protobuf qt
+        brew install autoconf automake berkeley-db4 boost openssl pkg-config protobuf qt
 
 Note: After you have installed the dependencies, you should check that the Homebrew installed version of OpenSSL is the one available for compilation. You can check this by typing
 

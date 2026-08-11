@@ -50,18 +50,6 @@ AC_ARG_ENABLE([wallet],
   [enable_wallet=$enableval],
   [enable_wallet=yes])
 
-AC_ARG_WITH([natpmp],
-  [AS_HELP_STRING([--with-natpmp],
-  [enable NAT-PMP port mapping (default is yes if libnatpmp is found)])],
-  [use_natpmp=$withval],
-  [use_natpmp=auto])
-
-AC_ARG_ENABLE([natpmp-default],
-  [AS_HELP_STRING([--enable-natpmp-default],
-  [if NAT-PMP is enabled, turn it on at startup (default is no)])],
-  [use_natpmp_default=$enableval],
-  [use_natpmp_default=no])
-
 AC_ARG_ENABLE(tests,
     AS_HELP_STRING([--enable-tests],[compile tests (default is yes)]),
     [use_tests=$enableval],
@@ -395,22 +383,6 @@ if test x$enable_wallet != xno; then
     BITCOIN_FIND_BDB48
 fi
 
-dnl Check for libnatpmp (optional)
-if test x$use_natpmp != xno; then
-  dnl getgateway.c reaches the routing table through GetBestRoute() (iphlpapi)
-  dnl on Windows. Without those libs the probe link fails and NAT-PMP would
-  dnl vanish from the mingw build silently, which is the one build that needs it.
-  natpmp_probe_libs=
-  if test x$TARGET_OS = xwindows; then
-    natpmp_probe_libs="-liphlpapi -lws2_32"
-  fi
-  AC_CHECK_HEADERS(
-    [natpmp.h],
-    [AC_CHECK_LIB([natpmp], [main],, [have_natpmp=no], [$natpmp_probe_libs])],
-    [have_natpmp=no]
-  )
-fi
-
 dnl Check for boost libs
 AX_BOOST_BASE
 AX_BOOST_SYSTEM
@@ -594,37 +566,6 @@ else
   AC_MSG_RESULT(no)
 fi
 
-dnl enable NAT-PMP support
-AC_MSG_CHECKING([whether to build with support for NAT-PMP])
-if test x$have_natpmp = xno; then
-  if test x$use_natpmp = xyes; then
-     AC_MSG_ERROR("NAT-PMP requested but cannot be built. use --without-natpmp")
-  fi
-  AC_MSG_RESULT(no)
-else
-  if test x$use_natpmp != xno; then
-    AC_MSG_RESULT(yes)
-    AC_MSG_CHECKING([whether to build with NAT-PMP enabled by default])
-    use_natpmp=yes
-    natpmp_setting=0
-    if test x$use_natpmp_default != xno; then
-      use_natpmp_default=yes
-      natpmp_setting=1
-    fi
-    AC_MSG_RESULT($use_natpmp_default)
-    AC_DEFINE_UNQUOTED([USE_NATPMP],[$natpmp_setting],[NAT-PMP support not compiled if undefined, otherwise value (0 or 1) determines default state])
-    if test x$TARGET_OS = xwindows; then
-      dnl Same declspec trap miniupnpc had: natpmp_declspec.h resolves to
-      dnl __declspec(dllimport) unless NATPMP_STATICLIB says otherwise, and
-      dnl getgateway.c pulls GetBestRoute() out of iphlpapi. Miss either and
-      dnl net.cpp fails to link with __imp_* or an undefined GetBestRoute.
-      CPPFLAGS="$CPPFLAGS -DNATPMP_STATICLIB"
-      LIBS="$LIBS -liphlpapi"
-    fi
-  else
-    AC_MSG_RESULT(no)
-  fi
-fi
 
 dnl these are only used when qt is enabled
 if test x$bitcoin_enable_qt != xno; then
@@ -702,7 +643,6 @@ AC_SUBST(CLIENT_VERSION_IS_RELEASE, _CLIENT_VERSION_IS_RELEASE)
 AC_SUBST(COPYRIGHT_YEAR, _COPYRIGHT_YEAR)
 
 
-AC_SUBST(USE_NATPMP)
 AC_SUBST(USE_QRCODE)
 AC_SUBST(INCLUDES)
 AC_SUBST(BOOST_LIBS)
