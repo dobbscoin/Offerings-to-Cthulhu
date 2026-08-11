@@ -41,8 +41,8 @@ OptionsDialog::OptionsDialog(QWidget *parent) :
     ui->threadsScriptVerif->setMaximum(MAX_SCRIPTCHECK_THREADS);
 
     /* Network elements init */
-#ifndef USE_UPNP
-    ui->mapPortUpnp->setEnabled(false);
+#ifndef USE_NATPMP
+    ui->mapPortNatpmp->setEnabled(false);
 #endif
 
     ui->proxyIp->setEnabled(false);
@@ -181,7 +181,7 @@ void OptionsDialog::setMapper()
     mapper->addMapping(ui->coinControlFeatures, OptionsModel::CoinControlFeatures);
 
     /* Network */
-    mapper->addMapping(ui->mapPortUpnp, OptionsModel::MapPortUPnP);
+    mapper->addMapping(ui->mapPortNatpmp, OptionsModel::MapPortNatpmp);
 
     mapper->addMapping(ui->connectSocks, OptionsModel::ProxyUse);
     mapper->addMapping(ui->proxyIp, OptionsModel::ProxyIP);

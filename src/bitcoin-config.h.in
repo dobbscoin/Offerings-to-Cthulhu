@@ -89,11 +89,11 @@
 /* Define to 1 if you have the `mingwthrd' library (-lmingwthrd). */
 #undef HAVE_LIBMINGWTHRD
 
-/* Define to 1 if you have the `miniupnpc' library (-lminiupnpc). */
-#undef HAVE_LIBMINIUPNPC
-
 /* Define to 1 if you have the `mswsock' library (-lmswsock). */
 #undef HAVE_LIBMSWSOCK
+
+/* Define to 1 if you have the `natpmp' library (-lnatpmp). */
+#undef HAVE_LIBNATPMP
 
 /* Define to 1 if you have the `ole32' library (-lole32). */
 #undef HAVE_LIBOLE32
@@ -140,20 +140,11 @@
 /* Define to 1 if you have the `z ' library (-lz ). */
 #undef HAVE_LIBZ_
 
-/* Define to 1 if you have the <miniupnpc/miniupnpc.h> header file. */
-#undef HAVE_MINIUPNPC_MINIUPNPC_H
-
-/* Define to 1 if you have the <miniupnpc/miniwget.h> header file. */
-#undef HAVE_MINIUPNPC_MINIWGET_H
-
-/* Define to 1 if you have the <miniupnpc/upnpcommands.h> header file. */
-#undef HAVE_MINIUPNPC_UPNPCOMMANDS_H
-
-/* Define to 1 if you have the <miniupnpc/upnperrors.h> header file. */
-#undef HAVE_MINIUPNPC_UPNPERRORS_H
-
 /* Define this symbol if you have MSG_NOSIGNAL */
 #undef HAVE_MSG_NOSIGNAL
+
+/* Define to 1 if you have the <natpmp.h> header file. */
+#undef HAVE_NATPMP_H
 
 /* Define if you have POSIX threads libraries and header files. */
 #undef HAVE_PTHREAD
@@ -230,12 +221,12 @@
 /* Define if dbus support should be compiled in */
 #undef USE_DBUS
 
+/* NAT-PMP support not compiled if undefined, otherwise value (0 or 1)
+   determines default state */
+#undef USE_NATPMP
+
 /* Define if QR support should be compiled in */
 #undef USE_QRCODE
-
-/* UPnP support not compiled if undefined, otherwise value (0 or 1) determines
-   default state */
-#undef USE_UPNP
 
 /* Define WORDS_BIGENDIAN to 1 if your processor stores words with the most
    significant byte first (like Motorola and SPARC, unlike Intel). */

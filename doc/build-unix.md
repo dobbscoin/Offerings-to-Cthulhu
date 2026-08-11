@@ -19,24 +19,28 @@ Dependencies
  libssl      | SSL Support      | Secure communications
  libdb4.8    | Berkeley DB      | Wallet storage
  libboost    | Boost            | C++ Library
- miniupnpc   | UPnP Support     | Optional firewall-jumping support
+ libnatpmp   | NAT-PMP Support  | Optional firewall-jumping support
  qt          | GUI              | GUI toolkit
  protobuf    | Payments in GUI  | Data interchange format used for payment protocol
  libqrencode | QR codes in GUI  | Optional for generating QR codes
 
-[miniupnpc](http://miniupnp.free.fr/) may be used for UPnP port mapping.  It can be downloaded from [here](
-http://miniupnp.tuxfamily.org/files/).  UPnP support is compiled in and
-turned off by default.  See the configure options for upnp behavior desired:
+[libnatpmp](http://miniupnp.free.fr/libnatpmp.html) may be used for NAT-PMP port
+mapping.  It can be downloaded from [here](http://miniupnp.tuxfamily.org/files/).
+NAT-PMP support is compiled in and turned off by default.  See the configure
+options for the port-mapping behavior desired:
 
-	--without-miniupnpc      No UPnP support miniupnp not required
-	--disable-upnp-default   (the default) UPnP support turned off by default at runtime
-	--enable-upnp-default    UPnP support turned on by default at runtime
+	--without-natpmp          No NAT-PMP support, libnatpmp not required
+	--disable-natpmp-default  (the default) NAT-PMP support turned off by default at runtime
+	--enable-natpmp-default   NAT-PMP support turned on by default at runtime
+
+NAT-PMP replaced UPnP (issue #37).  The `-upnp` startup flag is still accepted
+as a deprecated alias for `-natpmp`.
 
 Licenses of statically linked libraries:
  Berkeley DB   New BSD license with additional requirement that linked
                software must be free open source
  Boost         MIT-like license
- miniupnpc     New (3-clause) BSD license
+ libnatpmp     New (3-clause) BSD license
 
 - For the versions used in the release, see doc/release-process.md under *Fetch and build inputs*.
 
@@ -90,7 +94,7 @@ for other Ubuntu & Debian:
 
 Optional:
 
-	sudo apt-get install libminiupnpc-dev (see --with-miniupnpc and --enable-upnp-default)
+	sudo apt-get install libnatpmp-dev (see --with-natpmp and --enable-natpmp-default)
 
 Dependencies for the GUI: Ubuntu & Debian
 -----------------------------------------
@@ -121,10 +125,10 @@ The release is built with GCC and then "strip bitcoind" to strip the debug
 symbols, which reduces the executable size by about 90%.
 
 
-miniupnpc
+libnatpmp
 ---------
-	tar -xzvf miniupnpc-1.6.tar.gz
-	cd miniupnpc-1.6
+	tar -xzvf libnatpmp-20230423.tar.gz
+	cd libnatpmp-20230423
 	make
 	sudo su
 	make install

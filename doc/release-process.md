@@ -43,7 +43,7 @@ Release Process
 
  Fetch and build inputs: (first time, or when dependency versions change)
 
-	wget 'http://miniupnp.free.fr/files/download.php?file=miniupnpc-1.9.tar.gz' -O miniupnpc-1.9.tar.gz
+	wget 'http://miniupnp.tuxfamily.org/files/libnatpmp-20230423.tar.gz' -O libnatpmp-20230423.tar.gz
 	wget 'https://www.openssl.org/source/openssl-1.0.1h.tar.gz'
 	wget 'http://download.oracle.com/berkeley-db/db-4.8.30.NC.tar.gz'
 	wget 'http://zlib.net/zlib-1.2.8.tar.gz'
