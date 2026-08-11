@@ -19,7 +19,7 @@ Use it to exercise the `v2.0.x-rc-bipsoft` consensus bundle (#32 + #33 +
 git clone https://github.com/SubGeniusFinance/Offerings-to-Cthulhu.git
 cd Offerings-to-Cthulhu
 git checkout feat/v2.0.x-rc-bipsoft   # or whatever rc tag is current
-./autogen.sh && ./configure --without-gui --disable-tests --without-miniupnpc
+./autogen.sh && ./configure --without-gui --disable-tests --without-natpmp
 make -j$(nproc) -C src Offeringsd
 
 # Launch in testnet mode

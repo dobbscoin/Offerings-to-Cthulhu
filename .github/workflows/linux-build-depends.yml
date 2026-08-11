@@ -1,7 +1,7 @@
 name: Build Linux daemon (depends/ static)
 
 # Canonical Bitcoin Core depends/ build path, native Linux x86_64.
-# depends/ vendors Boost 1.74 / OpenSSL 1.0.2 / BDB 4.8 / miniupnpc 2.2.2
+# depends/ vendors Boost 1.74 / OpenSSL 1.0.2 / BDB 4.8 / libnatpmp 20230423
 # from pinned source, so the resulting Offeringsd + Offerings-cli do not
 # depend on the host distro's Boost version.
 #
@@ -75,12 +75,12 @@ jobs:
           echo "=== cache hit? ==="
           [ -d depends/x86_64-unknown-linux-gnu ] && echo "depends/x86_64-unknown-linux-gnu present (cache hit)" || echo "no cache, will build from scratch"
 
-      - name: Build depends/ for x86_64-unknown-linux-gnu (NO_QT, NO_UPNP)
+      - name: Build depends/ for x86_64-unknown-linux-gnu (NO_QT, NO_NATPMP)
         run: |
           cd depends
-          # NO_QT=1: daemon-only. NO_UPNP=1: matches PR #1 Win path; UPnP not needed for daemon.
+          # NO_QT=1: daemon-only. NO_NATPMP=1: a VPS-hosted daemon has no gateway to ask.
           # First cold run ~30-45 min; cached runs ~2-5 min.
-          make HOST=x86_64-unknown-linux-gnu -j$(nproc) NO_QT=1 NO_UPNP=1 || {
+          make HOST=x86_64-unknown-linux-gnu -j$(nproc) NO_QT=1 NO_NATPMP=1 || {
             echo "=== depends/ build failed — last 80 lines of any build.log ==="
             find depends/work -name build.log -exec tail -80 {} \; 2>/dev/null | head -200
             exit 1
@@ -104,7 +104,7 @@ jobs:
               --build=x86_64-pc-linux-gnu \
               --disable-tests \
               --disable-bench \
-              --without-miniupnpc \
+              --without-natpmp \
               --with-boost=${DEPENDS_PREFIX} \
               || { echo "=== config.log tail ==="; tail -300 config.log; exit 1; }
 

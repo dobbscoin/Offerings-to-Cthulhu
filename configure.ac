@@ -50,17 +50,17 @@ AC_ARG_ENABLE([wallet],
   [enable_wallet=$enableval],
   [enable_wallet=yes])
 
-AC_ARG_WITH([miniupnpc],
-  [AS_HELP_STRING([--with-miniupnpc],
-  [enable UPNP (default is yes if libminiupnpc is found)])],
-  [use_upnp=$withval],
-  [use_upnp=auto])
+AC_ARG_WITH([natpmp],
+  [AS_HELP_STRING([--with-natpmp],
+  [enable NAT-PMP port mapping (default is yes if libnatpmp is found)])],
+  [use_natpmp=$withval],
+  [use_natpmp=auto])
 
-AC_ARG_ENABLE([upnp-default],
-  [AS_HELP_STRING([--enable-upnp-default],
-  [if UPNP is enabled, turn it on at startup (default is no)])],
-  [use_upnp_default=$enableval],
-  [use_upnp_default=no])
+AC_ARG_ENABLE([natpmp-default],
+  [AS_HELP_STRING([--enable-natpmp-default],
+  [if NAT-PMP is enabled, turn it on at startup (default is no)])],
+  [use_natpmp_default=$enableval],
+  [use_natpmp_default=no])
 
 AC_ARG_ENABLE(tests,
     AS_HELP_STRING([--enable-tests],[compile tests (default is yes)]),
@@ -395,12 +395,19 @@ if test x$enable_wallet != xno; then
     BITCOIN_FIND_BDB48
 fi
 
-dnl Check for libminiupnpc (optional)
-if test x$use_upnp != xno; then
+dnl Check for libnatpmp (optional)
+if test x$use_natpmp != xno; then
+  dnl getgateway.c reaches the routing table through GetBestRoute() (iphlpapi)
+  dnl on Windows. Without those libs the probe link fails and NAT-PMP would
+  dnl vanish from the mingw build silently, which is the one build that needs it.
+  natpmp_probe_libs=
+  if test x$TARGET_OS = xwindows; then
+    natpmp_probe_libs="-liphlpapi -lws2_32"
+  fi
   AC_CHECK_HEADERS(
-    [miniupnpc/miniwget.h miniupnpc/miniupnpc.h miniupnpc/upnpcommands.h miniupnpc/upnperrors.h],
-    [AC_CHECK_LIB([miniupnpc], [main],, [have_miniupnpc=no])],
-    [have_miniupnpc=no]
+    [natpmp.h],
+    [AC_CHECK_LIB([natpmp], [main],, [have_natpmp=no], [$natpmp_probe_libs])],
+    [have_natpmp=no]
   )
 fi
 
@@ -587,31 +594,32 @@ else
   AC_MSG_RESULT(no)
 fi
 
-dnl enable upnp support
-AC_MSG_CHECKING([whether to build with support for UPnP])
-if test x$have_miniupnpc = xno; then
-  if test x$use_upnp = xyes; then
-     AC_MSG_ERROR("UPnP requested but cannot be built. use --without-miniupnpc")
+dnl enable NAT-PMP support
+AC_MSG_CHECKING([whether to build with support for NAT-PMP])
+if test x$have_natpmp = xno; then
+  if test x$use_natpmp = xyes; then
+     AC_MSG_ERROR("NAT-PMP requested but cannot be built. use --without-natpmp")
   fi
   AC_MSG_RESULT(no)
 else
-  if test x$use_upnp != xno; then
+  if test x$use_natpmp != xno; then
     AC_MSG_RESULT(yes)
-    AC_MSG_CHECKING([whether to build with UPnP enabled by default])
-    use_upnp=yes
-    upnp_setting=0
-    if test x$use_upnp_default != xno; then
-      use_upnp_default=yes
-      upnp_setting=1
+    AC_MSG_CHECKING([whether to build with NAT-PMP enabled by default])
+    use_natpmp=yes
+    natpmp_setting=0
+    if test x$use_natpmp_default != xno; then
+      use_natpmp_default=yes
+      natpmp_setting=1
     fi
-    AC_MSG_RESULT($use_upnp_default)
-    AC_DEFINE_UNQUOTED([USE_UPNP],[$upnp_setting],[UPnP support not compiled if undefined, otherwise value (0 or 1) determines default state])
+    AC_MSG_RESULT($use_natpmp_default)
+    AC_DEFINE_UNQUOTED([USE_NATPMP],[$natpmp_setting],[NAT-PMP support not compiled if undefined, otherwise value (0 or 1) determines default state])
     if test x$TARGET_OS = xwindows; then
-      dnl miniupnpc headers use __declspec(dllimport) on Windows unless told the
-      dnl library is static. Old miniupnpc keyed this off STATICLIB; >=2.x uses
-      dnl MINIUPNP_STATICLIB (miniupnpc_declspec.h). depends builds it static, so
-      dnl define both or net.cpp gets __imp_* (dllimport) undefined references.
-      CPPFLAGS="$CPPFLAGS -DSTATICLIB -DMINIUPNP_STATICLIB"
+      dnl Same declspec trap miniupnpc had: natpmp_declspec.h resolves to
+      dnl __declspec(dllimport) unless NATPMP_STATICLIB says otherwise, and
+      dnl getgateway.c pulls GetBestRoute() out of iphlpapi. Miss either and
+      dnl net.cpp fails to link with __imp_* or an undefined GetBestRoute.
+      CPPFLAGS="$CPPFLAGS -DNATPMP_STATICLIB"
+      LIBS="$LIBS -liphlpapi"
     fi
   else
     AC_MSG_RESULT(no)
@@ -694,7 +702,7 @@ AC_SUBST(CLIENT_VERSION_IS_RELEASE, _CLIENT_VERSION_IS_RELEASE)
 AC_SUBST(COPYRIGHT_YEAR, _COPYRIGHT_YEAR)
 
 
-AC_SUBST(USE_UPNP)
+AC_SUBST(USE_NATPMP)
 AC_SUBST(USE_QRCODE)
 AC_SUBST(INCLUDES)
 AC_SUBST(BOOST_LIBS)
