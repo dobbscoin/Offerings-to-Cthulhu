@@ -7,9 +7,14 @@ $(package)_sha256_hash=0684ed2c8406437e7519a1bd20ea83780db871b3a3a5d752311ba3e88
 define $(package)_set_vars
 $(package)_build_opts=CC="$($(package)_cc)"
 $(package)_build_opts_darwin=LIBTOOL="$($(package)_libtool)"
-# natpmp.h resolves to __declspec(dllimport) unless the library is declared
-# static (natpmp_declspec.h), which breaks compiling the library itself.
-$(package)_build_opts_mingw32=CPPFLAGS=-DNATPMP_STATICLIB
+# Two mingw-only adjustments:
+#   - natpmp.h resolves to __declspec(dllimport) unless the library is declared
+#     static (natpmp_declspec.h), which breaks compiling the library itself.
+#   - upstream's LIBOBJS is natpmp.o + getgateway.o, but on Windows natpmp.c
+#     does #define gettimeofday natpmp_gettimeofday, and that lives in
+#     wingettimeofday.c. Without it in the archive the daemon link dies on an
+#     undefined natpmp_gettimeofday.
+$(package)_build_opts_mingw32=CPPFLAGS=-DNATPMP_STATICLIB LIBOBJS="natpmp.o getgateway.o wingettimeofday.o"
 $(package)_build_env+=CFLAGS="$($(package)_cflags) $($(package)_cppflags)" AR="$($(package)_ar)"
 endef
 
