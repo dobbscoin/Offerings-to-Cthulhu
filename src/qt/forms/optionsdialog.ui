@@ -233,6 +233,29 @@
       </attribute>
       <layout class="QVBoxLayout" name="verticalLayout_Network">
        <item>
+        <widget class="QCheckBox" name="mapPortAuto">
+         <property name="toolTip">
+          <string>Ask your router to open the Offerings port automatically. Tries NAT-PMP first, then UPnP. Your router must support one of them and have it enabled.</string>
+         </property>
+         <property name="text">
+          <string>Open my port on the router &amp;automatically</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="mapPortStatus">
+         <property name="styleSheet">
+          <string notr="true">QLabel { color: #808080; margin-left: 20px; }</string>
+         </property>
+         <property name="text">
+          <string/>
+         </property>
+         <property name="wordWrap">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
         <widget class="QCheckBox" name="connectSocks">
          <property name="toolTip">
           <string>Connect to the Offerings network through a SOCKS proxy.</string>

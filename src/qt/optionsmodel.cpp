@@ -119,6 +119,15 @@ void OptionsModel::Init()
 #endif
 
     // Network
+    // Port mapping is off at startup regardless of the compile-time default.
+    // Seed from the older per-protocol keys so anyone who had mapping ticked
+    // before the two were merged into one option keeps it.
+    if (!settings.contains("fUseMapPort"))
+        settings.setValue("fUseMapPort",
+            settings.value("fUseNatpmp", settings.value("fUseUPnP", false)).toBool());
+    if (!SoftSetBoolArg("-mapport", settings.value("fUseMapPort").toBool()))
+        addOverriddenOption("-mapport");
+
     if (!settings.contains("fUseProxy"))
         settings.setValue("fUseProxy", false);
     if (!settings.contains("addrProxy"))
@@ -181,6 +190,12 @@ QVariant OptionsModel::data(const QModelIndex & index, int role) const
             return GUIUtil::GetStartOnSystemStartup();
         case MinimizeToTray:
             return fMinimizeToTray;
+        case MapPortAuto:
+#if defined(USE_NATPMP) || defined(USE_UPNP)
+            return settings.value("fUseMapPort");
+#else
+            return false;
+#endif
         case MinimizeOnClose:
             return fMinimizeOnClose;
 
@@ -256,6 +271,10 @@ bool OptionsModel::setData(const QModelIndex & index, const QVariant & value, in
         case MinimizeToTray:
             fMinimizeToTray = value.toBool();
             settings.setValue("fMinimizeToTray", fMinimizeToTray);
+            break;
+        case MapPortAuto: // core option - can be changed on-the-fly
+            settings.setValue("fUseMapPort", value.toBool());
+            MapPort(value.toBool());
             break;
         case MinimizeOnClose:
             fMinimizeOnClose = value.toBool();

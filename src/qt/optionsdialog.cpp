@@ -15,6 +15,7 @@
 #include "optionsmodel.h"
 
 #include "main.h" // for CTransaction::nMinTxFee and MAX_SCRIPTCHECK_THREADS
+#include "net.h"
 #include "netbase.h"
 #include "txdb.h" // for -dbcache defaults
 
@@ -40,7 +41,20 @@ OptionsDialog::OptionsDialog(QWidget *parent) :
     ui->threadsScriptVerif->setMinimum(-(int)boost::thread::hardware_concurrency());
     ui->threadsScriptVerif->setMaximum(MAX_SCRIPTCHECK_THREADS);
 
+    mapPortStatusTimer = NULL;
+
     /* Network elements init */
+#if !defined(USE_NATPMP) && !defined(USE_UPNP)
+    ui->mapPortAuto->setEnabled(false);
+    ui->mapPortStatus->setText(tr("This build has no port-mapping support."));
+#else
+    // A checkbox that silently does nothing is the failure this build exists to
+    // avoid, so poll the mapper and say what actually happened.
+    mapPortStatusTimer = new QTimer(this);
+    mapPortStatusTimer->setInterval(1000);
+    connect(mapPortStatusTimer, SIGNAL(timeout()), this, SLOT(updateMapPortStatus()));
+    mapPortStatusTimer->start();
+#endif
     ui->proxyIp->setEnabled(false);
     ui->proxyPort->setEnabled(false);
     ui->proxyPort->setValidator(new QIntValidator(1, 65535, this));
@@ -178,6 +192,7 @@ void OptionsDialog::setMapper()
 
     /* Network */
 
+    mapper->addMapping(ui->mapPortAuto, OptionsModel::MapPortAuto);
     mapper->addMapping(ui->connectSocks, OptionsModel::ProxyUse);
     mapper->addMapping(ui->proxyIp, OptionsModel::ProxyIP);
     mapper->addMapping(ui->proxyPort, OptionsModel::ProxyPort);
@@ -266,6 +281,18 @@ void OptionsDialog::showRestartWarning(bool fPersistent)
 void OptionsDialog::clearStatusLabel()
 {
     ui->statusLabel->clear();
+}
+
+void OptionsDialog::updateMapPortStatus()
+{
+#if defined(USE_NATPMP) || defined(USE_UPNP)
+    if (!model || !model->data(model->index(OptionsModel::MapPortAuto, 0), Qt::EditRole).toBool())
+    {
+        ui->mapPortStatus->setText("");
+        return;
+    }
+    ui->mapPortStatus->setText(QString::fromStdString(GetMapPortStatus()));
+#endif
 }
 
 void OptionsDialog::updateDisplayUnit()
