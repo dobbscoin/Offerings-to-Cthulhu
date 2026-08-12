@@ -50,6 +50,24 @@ AC_ARG_ENABLE([wallet],
   [enable_wallet=$enableval],
   [enable_wallet=yes])
 
+AC_ARG_WITH([natpmp],
+  [AS_HELP_STRING([--with-natpmp],
+  [enable NAT-PMP port mapping (default is yes if libnatpmp is found)])],
+  [use_natpmp=$withval],
+  [use_natpmp=auto])
+
+AC_ARG_WITH([miniupnpc],
+  [AS_HELP_STRING([--with-miniupnpc],
+  [enable UPnP port mapping (default is yes if libminiupnpc is found)])],
+  [use_upnp=$withval],
+  [use_upnp=auto])
+
+AC_ARG_ENABLE([mapport-default],
+  [AS_HELP_STRING([--enable-mapport-default],
+  [if port mapping is enabled, turn it on at startup (default is no)])],
+  [use_mapport_default=$enableval],
+  [use_mapport_default=no])
+
 AC_ARG_ENABLE(tests,
     AS_HELP_STRING([--enable-tests],[compile tests (default is yes)]),
     [use_tests=$enableval],
@@ -383,6 +401,31 @@ if test x$enable_wallet != xno; then
     BITCOIN_FIND_BDB48
 fi
 
+dnl Check for libnatpmp (optional)
+if test x$use_natpmp != xno; then
+  dnl getgateway.c reaches the routing table through GetBestRoute() (iphlpapi)
+  dnl on Windows. Without those libs the probe link fails and NAT-PMP would
+  dnl vanish from the mingw build silently.
+  natpmp_probe_libs=
+  if test x$TARGET_OS = xwindows; then
+    natpmp_probe_libs="-liphlpapi -lws2_32"
+  fi
+  AC_CHECK_HEADERS(
+    [natpmp.h],
+    [AC_CHECK_LIB([natpmp], [main],, [have_natpmp=no], [$natpmp_probe_libs])],
+    [have_natpmp=no]
+  )
+fi
+
+dnl Check for libminiupnpc (optional)
+if test x$use_upnp != xno; then
+  AC_CHECK_HEADERS(
+    [miniupnpc/miniwget.h miniupnpc/miniupnpc.h miniupnpc/upnpcommands.h miniupnpc/upnperrors.h],
+    [AC_CHECK_LIB([miniupnpc], [main],, [have_miniupnpc=no])],
+    [have_miniupnpc=no]
+  )
+fi
+
 dnl Check for boost libs
 AX_BOOST_BASE
 AX_BOOST_SYSTEM
@@ -643,6 +686,65 @@ AC_SUBST(CLIENT_VERSION_IS_RELEASE, _CLIENT_VERSION_IS_RELEASE)
 AC_SUBST(COPYRIGHT_YEAR, _COPYRIGHT_YEAR)
 
 
+
+dnl enable NAT-PMP support
+AC_MSG_CHECKING([whether to build with support for NAT-PMP])
+if test x$have_natpmp = xno; then
+  if test x$use_natpmp = xyes; then
+     AC_MSG_ERROR("NAT-PMP requested but cannot be built. use --without-natpmp")
+  fi
+  AC_MSG_RESULT(no)
+  use_natpmp=no
+else
+  if test x$use_natpmp != xno; then
+    AC_MSG_RESULT(yes)
+    use_natpmp=yes
+    mapport_setting=0
+    if test x$use_mapport_default != xno; then
+      mapport_setting=1
+    fi
+    AC_DEFINE_UNQUOTED([USE_NATPMP],[$mapport_setting],[NAT-PMP support not compiled if undefined, otherwise value (0 or 1) determines default state])
+    if test x$TARGET_OS = xwindows; then
+      dnl natpmp_declspec.h resolves to __declspec(dllimport) unless told the
+      dnl library is static, and getgateway.c pulls GetBestRoute() out of iphlpapi.
+      CPPFLAGS="$CPPFLAGS -DNATPMP_STATICLIB"
+      LIBS="$LIBS -liphlpapi"
+    fi
+  else
+    AC_MSG_RESULT(no)
+  fi
+fi
+
+dnl enable UPnP support
+AC_MSG_CHECKING([whether to build with support for UPnP])
+if test x$have_miniupnpc = xno; then
+  if test x$use_upnp = xyes; then
+     AC_MSG_ERROR("UPnP requested but cannot be built. use --without-miniupnpc")
+  fi
+  AC_MSG_RESULT(no)
+  use_upnp=no
+else
+  if test x$use_upnp != xno; then
+    AC_MSG_RESULT(yes)
+    use_upnp=yes
+    mapport_setting=0
+    if test x$use_mapport_default != xno; then
+      mapport_setting=1
+    fi
+    AC_DEFINE_UNQUOTED([USE_UPNP],[$mapport_setting],[UPnP support not compiled if undefined, otherwise value (0 or 1) determines default state])
+    if test x$TARGET_OS = xwindows; then
+      dnl miniupnpc headers use __declspec(dllimport) on Windows unless told the
+      dnl library is static. Old miniupnpc keyed this off STATICLIB; >=2.x uses
+      dnl MINIUPNP_STATICLIB (miniupnpc_declspec.h).
+      CPPFLAGS="$CPPFLAGS -DSTATICLIB -DMINIUPNP_STATICLIB"
+    fi
+  else
+    AC_MSG_RESULT(no)
+  fi
+fi
+
+AC_SUBST(USE_NATPMP)
+AC_SUBST(USE_UPNP)
 AC_SUBST(USE_QRCODE)
 AC_SUBST(INCLUDES)
 AC_SUBST(BOOST_LIBS)
