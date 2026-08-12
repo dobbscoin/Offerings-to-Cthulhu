@@ -18,6 +18,8 @@ This repository is the **community takeover** and **Restoration** of OFF — sou
 
 > This is **NOT financial advice.** We are **NOT financial advisors.** None of this is investment. Most of it is dread.
 
+📜 **[THE TESTAMENT OF THE RESTORED CHAIN](WHITEPAPER.md)** — the whitepaper: history including the ugly parts, consensus rules, emission, the security model and its disclosed points of trust, and the treasury.
+
 ---
 
 ## What Has Been Done
