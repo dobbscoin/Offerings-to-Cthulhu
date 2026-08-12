@@ -230,6 +230,7 @@ bool AcceptToMemoryPool(CTxMemPool& pool, CValidationState &state, const CTransa
 
 struct CNodeStateStats {
     int nMisbehavior;
+    int nSyncHeight;   // highest block this peer has announced; -1 if unknown
 };
 
 struct CDiskBlockPos
