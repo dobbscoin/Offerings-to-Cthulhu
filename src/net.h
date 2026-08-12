@@ -56,6 +56,67 @@ void SocketSendData(CNode *pnode);
 
 typedef int NodeId;
 
+/** Why a peer was banned. Stored so listbanned can tell an operator's manual
+ *  ban apart from one the misbehaviour counter applied on its own. */
+enum BanReason
+{
+    BanReasonUnknown          = 0,
+    BanReasonNodeMisbehaving  = 1,
+    BanReasonManuallyAdded    = 2
+};
+
+class CBanEntry
+{
+public:
+    static const int CURRENT_VERSION = 1;
+    int nVersion;
+    int64_t nCreateTime;
+    int64_t nBanUntil;
+    uint8_t banReason;
+
+    CBanEntry()
+    {
+        SetNull();
+    }
+
+    CBanEntry(int64_t nCreateTimeIn)
+    {
+        SetNull();
+        nCreateTime = nCreateTimeIn;
+    }
+
+    IMPLEMENT_SERIALIZE
+        (
+         READWRITE(this->nVersion);
+         nVersion = this->nVersion;
+         READWRITE(nCreateTime);
+         READWRITE(nBanUntil);
+         READWRITE(banReason);
+        )
+
+    void SetNull()
+    {
+        nVersion = CBanEntry::CURRENT_VERSION;
+        nCreateTime = 0;
+        nBanUntil = 0;
+        banReason = BanReasonUnknown;
+    }
+
+    std::string banReasonToString() const
+    {
+        switch (banReason) {
+        case BanReasonNodeMisbehaving:
+            return "node misbehaving";
+        case BanReasonManuallyAdded:
+            return "manually added";
+        default:
+            return "unknown";
+        }
+    }
+};
+
+typedef std::map<CNetAddr, CBanEntry> banmap_t;
+
 // Signals for message handling
 struct CNodeSignals
 {
@@ -237,8 +298,9 @@ protected:
 
     // Denial-of-service detection/prevention
     // Key is IP address, value is banned-until-time
-    static std::map<CNetAddr, int64_t> setBanned;
+    static banmap_t setBanned;
     static CCriticalSection cs_setBanned;
+    static bool setBannedIsDirty;
 
     // Basic fuzz-testing
     void Fuzz(int nChance); // modifies ssSend
@@ -694,7 +756,14 @@ public:
     // new code.
     static void ClearBanned(); // needed for unit testing
     static bool IsBanned(CNetAddr ip);
-    static bool Ban(const CNetAddr &ip);
+    static bool Ban(const CNetAddr &ip, const BanReason &banReason, int64_t bantimeoffset = 0, bool sinceUnixEpoch = false);
+    static bool Unban(const CNetAddr &ip);
+    static void GetBanned(banmap_t &banmap);
+    static void SetBanned(const banmap_t &banmap);
+    //! Drop entries whose ban has already expired. Returns true if anything went.
+    static bool SweepBanned();
+    static bool BannedSetIsDirty();
+    static void SetBannedSetDirty(bool dirty = true);
     void copyStats(CNodeStats &stats);
 
     // Network stats
@@ -721,5 +790,19 @@ public:
     bool Write(const CAddrMan& addr);
     bool Read(CAddrMan& addr);
 };
+
+/** banlist.dat — same on-disk shape as peers.dat: network magic, payload,
+ *  trailing checksum, written to a temp file and renamed into place. */
+class CBanDB
+{
+private:
+    boost::filesystem::path pathBanlist;
+public:
+    CBanDB();
+    bool Write(const banmap_t& banSet);
+    bool Read(banmap_t& banSet);
+};
+
+void DumpBanlist();
 
 #endif

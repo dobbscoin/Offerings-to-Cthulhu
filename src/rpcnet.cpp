@@ -310,6 +310,108 @@ Value getaddednodeinfo(const Array& params, bool fHelp)
     return ret;
 }
 
+Value setban(const Array& params, bool fHelp)
+{
+    string strCommand;
+    if (params.size() >= 2)
+        strCommand = params[1].get_str();
+    if (fHelp || params.size() < 2 ||
+        (strCommand != "add" && strCommand != "remove"))
+        throw runtime_error(
+                            "setban \"ip\" \"add|remove\" (bantime) (absolute)\n"
+                            "\nAttempts add or remove a IP from the banned list.\n"
+                            "\nArguments:\n"
+                            "1. \"ip\"          (string, required) The IP (see getpeerinfo for nodes ip)\n"
+                            "2. \"command\"     (string, required) 'add' to add a IP to the list, 'remove' to remove a IP from the list\n"
+                            "3. \"bantime\"     (numeric, optional) time in seconds how long (or until when if [absolute] is set) the ip is banned (0 or empty means using the default time of 24h which can also be overwritten by the -bantime startup argument)\n"
+                            "4. \"absolute\"    (boolean, optional) If set, the bantime must be a absolute timestamp in seconds since epoch\n"
+                            "\nExamples:\n"
+                            + HelpExampleCli("setban", "\"192.168.0.6\" \"add\" 86400")
+                            + HelpExampleRpc("setban", "\"192.168.0.6\", \"add\" 86400")
+                            );
+
+    CNetAddr netAddr(params[0].get_str());
+    if (!netAddr.IsValid())
+        throw JSONRPCError(RPC_CLIENT_INVALID_IP_OR_SUBNET, "Error: Invalid IP Address");
+
+    if (strCommand == "add")
+    {
+        if (CNode::IsBanned(netAddr))
+            throw JSONRPCError(RPC_CLIENT_NODE_ALREADY_ADDED, "Error: IP was already banned");
+
+        int64_t banTime = 0; //use standard bantime if not specified
+        if (params.size() >= 3 && params[2].type() != null_type)
+            banTime = params[2].get_int64();
+
+        bool absolute = false;
+        if (params.size() == 4)
+            absolute = params[3].get_bool();
+
+        CNode::Ban(netAddr, BanReasonManuallyAdded, banTime, absolute);
+
+        // disconnect any peer we just banned
+        LOCK(cs_vNodes);
+        BOOST_FOREACH(CNode* pnode, vNodes) {
+            if ((CNetAddr)pnode->addr == netAddr)
+                pnode->fDisconnect = true;
+        }
+    }
+    else if (strCommand == "remove")
+    {
+        if (!CNode::Unban(netAddr))
+            throw JSONRPCError(RPC_MISC_ERROR, "Error: Unban failed");
+    }
+
+    DumpBanlist(); //store banlist to disk
+    return Value::null;
+}
+
+Value listbanned(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 0)
+        throw runtime_error(
+                            "listbanned\n"
+                            "\nList all banned IPs.\n"
+                            "\nExamples:\n"
+                            + HelpExampleCli("listbanned", "")
+                            + HelpExampleRpc("listbanned", "")
+                            );
+
+    banmap_t banMap;
+    CNode::GetBanned(banMap);
+
+    Array bannedAddresses;
+    for (banmap_t::iterator it = banMap.begin(); it != banMap.end(); it++)
+    {
+        CBanEntry banEntry = (*it).second;
+        Object rec;
+        rec.push_back(Pair("address", (*it).first.ToString()));
+        rec.push_back(Pair("banned_until", banEntry.nBanUntil));
+        rec.push_back(Pair("ban_created", banEntry.nCreateTime));
+        rec.push_back(Pair("ban_reason", banEntry.banReasonToString()));
+
+        bannedAddresses.push_back(rec);
+    }
+
+    return bannedAddresses;
+}
+
+Value clearbanned(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() != 0)
+        throw runtime_error(
+                            "clearbanned\n"
+                            "\nClear all banned IPs.\n"
+                            "\nExamples:\n"
+                            + HelpExampleCli("clearbanned", "")
+                            + HelpExampleRpc("clearbanned", "")
+                            );
+
+    CNode::ClearBanned();
+
+    return Value::null;
+}
+
 Value getnettotals(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() > 0)
