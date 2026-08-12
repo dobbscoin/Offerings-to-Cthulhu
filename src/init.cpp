@@ -237,6 +237,11 @@ std::string HelpMessage(HelpMessageMode hmm)
     strUsage += "  -seednode=<ip>         " + _("Connect to a node to retrieve peer addresses, and disconnect") + "\n";
     strUsage += "  -socks=<n>             " + _("Select SOCKS version for -proxy (4 or 5, default: 5)") + "\n";
     strUsage += "  -timeout=<n>           " + _("Specify connection timeout in milliseconds (default: 5000)") + "\n";
+#if defined(USE_NATPMP) || defined(USE_UPNP)
+    strUsage += "  -mapport               " + _("Ask the router to open the listening port, via NAT-PMP or UPnP (default: 0)") + "\n";
+    strUsage += "  -natpmp                " + _("Deprecated alias for -mapport") + "\n";
+    strUsage += "  -upnp                  " + _("Deprecated alias for -mapport") + "\n";
+#endif
 
 #ifdef ENABLE_WALLET
     strUsage += "\n" + _("Wallet options:") + "\n";
@@ -475,6 +480,8 @@ bool AppInit2(boost::thread_group& threadGroup)
 
     if (!GetBoolArg("-listen", true)) {
         // do not map ports or try to retrieve public IP when not listening (pointless)
+        if (SoftSetBoolArg("-mapport", false))
+            LogPrintf("AppInit2 : parameter interaction: -listen=0 -> setting -mapport=0\n");
         if (SoftSetBoolArg("-discover", false))
             LogPrintf("AppInit2 : parameter interaction: -listen=0 -> setting -discover=0\n");
     }
