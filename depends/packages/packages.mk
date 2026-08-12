@@ -16,8 +16,6 @@ qt_linux_packages:=$(qt_linux_$(USE_LINUX_STATIC_QT5))
 
 wallet_packages=bdb
 
-nat_packages=natpmp
-
 ifneq ($(build_os),darwin)
 darwin_native_packages=native_libuuid native_openssl native_cctools native_cdrkit native_libdmg-hfsplus
 endif

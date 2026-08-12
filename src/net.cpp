@@ -20,10 +20,6 @@
 #include <fcntl.h>
 #endif
 
-#ifdef USE_NATPMP
-#include <natpmp.h>
-#endif
-
 #include <boost/filesystem.hpp>
 
 // Dump addresses to peers.dat every 15 minutes (900s)
@@ -946,135 +942,6 @@ void ThreadSocketHandler()
     }
 }
 
-#ifdef USE_NATPMP
-/** Lifetime we ask the gateway to hold the mapping for, and how often we renew.
- *  Renewing at a third of the lifetime means a single lost renewal still leaves
- *  the mapping standing for two more attempts. */
-static const uint32_t NATPMP_MAPPING_LIFETIME_SECS = 3600;
-static const int64_t NATPMP_REFRESH_MS = 20 * 60 * 1000;
-/** How long to wait between polls while the gateway is still thinking. */
-static const int64_t NATPMP_POLL_MS = 100;
-
-/** Drive libnatpmp's retry loop until the gateway answers or gives up.
- *
- *  libnatpmp handles retransmission internally and returns NATPMP_TRYAGAIN until
- *  it has an answer. Upstream drives that with select() on natpmp.s; we sleep
- *  instead. MilliSleep is already a boost interruption point, so shutdown lands
- *  here immediately, and it keeps the loop clear of the fd_set / WSAGetLastError
- *  differences between POSIX and mingw. The cost is up to NATPMP_POLL_MS of extra
- *  latency on a path that runs twice an hour.
- */
-static int AwaitNatpmpResponse(natpmp_t *natpmp, natpmpresp_t *response)
-{
-    int r;
-    do {
-        MilliSleep(NATPMP_POLL_MS);
-        r = readnatpmpresponseorretry(natpmp, response);
-    } while (r == NATPMP_TRYAGAIN);
-    return r;
-}
-
-/** Ask the gateway for its public address, so -discover can advertise it. */
-static void DiscoverExternalAddress(natpmp_t *natpmp)
-{
-    if (sendpublicaddressrequest(natpmp) < 0) {
-        LogPrintf("NAT-PMP: sendpublicaddressrequest() failed\n");
-        return;
-    }
-
-    natpmpresp_t response;
-    int r = AwaitNatpmpResponse(natpmp, &response);
-    if (r != 0) {
-        LogPrintf("NAT-PMP: public address request failed with %d\n", r);
-        return;
-    }
-
-    CNetAddr external(response.pnu.publicaddress.addr);
-    LogPrintf("NAT-PMP: ExternalIPAddress = %s\n", external.ToString());
-    AddLocal(external, LOCAL_MAPPED);
-}
-
-void ThreadMapPort()
-{
-    natpmp_t natpmp;
-
-    // forcegw = 0: take the default gateway from the routing table.
-    int r = initnatpmp(&natpmp, 0, 0);
-    if (r != 0) {
-        LogPrintf("NAT-PMP: initnatpmp() failed with %d - no usable gateway\n", r);
-        return;
-    }
-
-    const uint16_t port = GetListenPort();
-    bool fMapped = false;
-
-    try {
-        if (fDiscover)
-            DiscoverExternalAddress(&natpmp);
-
-        while (true) {
-            r = sendnewportmappingrequest(&natpmp, NATPMP_PROTOCOL_TCP, port, port,
-                                          NATPMP_MAPPING_LIFETIME_SECS);
-            if (r < 0) {
-                LogPrintf("NAT-PMP: sendnewportmappingrequest(%u) failed with %d\n", port, r);
-            } else {
-                natpmpresp_t response;
-                r = AwaitNatpmpResponse(&natpmp, &response);
-                if (r != 0)
-                    LogPrintf("NAT-PMP: port mapping request for %u failed with %d\n", port, r);
-                else {
-                    fMapped = true;
-                    LogPrintf("NAT-PMP: mapped external port %u to local port %u for %us\n",
-                              response.pnu.newportmapping.mappedpublicport,
-                              response.pnu.newportmapping.privateport,
-                              response.pnu.newportmapping.lifetime);
-                }
-            }
-
-            MilliSleep(NATPMP_REFRESH_MS);
-        }
-    }
-    catch (boost::thread_interrupted)
-    {
-        if (fMapped) {
-            // A lifetime of zero is how NAT-PMP spells "drop this mapping".
-            r = sendnewportmappingrequest(&natpmp, NATPMP_PROTOCOL_TCP, port, port, 0);
-            LogPrintf("NAT-PMP: mapping removal request returned %d\n", r);
-        }
-        closenatpmp(&natpmp);
-        throw;
-    }
-
-    closenatpmp(&natpmp);
-}
-
-void MapPort(bool fUseNatpmp)
-{
-    static boost::thread* natpmp_thread = NULL;
-
-    if (fUseNatpmp)
-    {
-        if (natpmp_thread) {
-            natpmp_thread->interrupt();
-            natpmp_thread->join();
-            delete natpmp_thread;
-        }
-        natpmp_thread = new boost::thread(boost::bind(&TraceThread<void (*)()>, "natpmp", &ThreadMapPort));
-    }
-    else if (natpmp_thread) {
-        natpmp_thread->interrupt();
-        natpmp_thread->join();
-        delete natpmp_thread;
-        natpmp_thread = NULL;
-    }
-}
-
-#else
-void MapPort(bool)
-{
-    // Intentionally left blank.
-}
-#endif
 
 
 
@@ -1631,13 +1498,6 @@ void StartNode(boost::thread_group& threadGroup)
     else
         threadGroup.create_thread(boost::bind(&TraceThread<void (*)()>, "dnsseed", &ThreadDNSAddressSeed));
 
-#ifdef USE_NATPMP
-    // Map ports with NAT-PMP. Default off at startup regardless of the
-    // compile-time USE_NATPMP default; it only runs if asked for. -upnp is
-    // still honored as the deprecated spelling (see init.cpp).
-    MapPort(GetBoolArg("-natpmp", GetBoolArg("-upnp", false)));
-#endif
-
     // Send and receive from sockets, accept connections
     threadGroup.create_thread(boost::bind(&TraceThread<void (*)()>, "net", &ThreadSocketHandler));
 
@@ -1657,7 +1517,6 @@ void StartNode(boost::thread_group& threadGroup)
 bool StopNode()
 {
     LogPrintf("StopNode()\n");
-    MapPort(false);
     if (semOutbound)
         for (int i=0; i<MAX_OUTBOUND_CONNECTIONS; i++)
             semOutbound->post();

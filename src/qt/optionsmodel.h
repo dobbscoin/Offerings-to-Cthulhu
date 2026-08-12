@@ -27,7 +27,6 @@ public:
     enum OptionID {
         StartAtStartup,         // bool
         MinimizeToTray,         // bool
-        MapPortNatpmp,          // bool
         MinimizeOnClose,        // bool
         ProxyUse,               // bool
         ProxyIP,                // QString

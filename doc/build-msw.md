@@ -17,21 +17,18 @@ Libraries you need to download separately and build:
 	OpenSSL         \openssl-1.0.1c-mgw        http://www.openssl.org/source/
 	Berkeley DB     \db-4.8.30.NC-mgw          http://www.oracle.com/technology/software/products/berkeley-db/index.html
 	Boost           \boost-1.50.0-mgw          http://www.boost.org/users/download/
-	libnatpmp       \libnatpmp-20230423-mgw    http://miniupnp.tuxfamily.org/files/
 
 Their licenses:
 
 	OpenSSL        Old BSD license with the problematic advertising requirement
 	Berkeley DB    New BSD license with additional requirement that linked software must be free open source
 	Boost          MIT-like license
-	libnatpmp      New (3-clause) BSD license
 
 Versions used in this release:
 
 	OpenSSL      1.0.1c
 	Berkeley DB  4.8.30.NC
 	Boost        1.50.0
-	libnatpmp    20230423
 
 
 OpenSSL
@@ -60,17 +57,6 @@ MSYS shell:
 	downloaded boost jam 3.1.18
 	cd \boost-1.50.0-mgw
 	bjam toolset=gcc --build-type=complete stage
-
-libnatpmp
----------
-NAT-PMP support is optional, make with `USE_NATPMP=` to disable it.
-
-MSYS shell:
-
-	cd /c/libnatpmp-20230423-mgw
-	make -f Makefile.mingw
-	mkdir libnatpmp
-	cp *.h libnatpmp/
 
 Bitcoin
 -------

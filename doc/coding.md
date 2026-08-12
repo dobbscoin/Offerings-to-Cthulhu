@@ -126,7 +126,6 @@ Threads
 
 - ThreadDNSAddressSeed : Loads addresses of peers from the DNS.
 
-- ThreadMapPort : Universal plug-and-play startup/shutdown
 
 - ThreadSocketHandler : Sends/Receives data from peers on port 8333.
 

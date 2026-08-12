@@ -82,8 +82,7 @@ jobs:
       - name: Build depends/ for x86_64-w64-mingw32
         run: |
           cd depends
-          # Bitcoin Core depends/ supports NO_QT, NO_NATPMP, NO_ZMQ flags. We want Qt for the GUI wallet
-          # AND libnatpmp so the Options→Network "Map port using NAT-PMP" checkbox is functional.
+          # Bitcoin Core depends/ supports NO_QT, NO_ZMQ flags. We want Qt for the GUI wallet.
           # First run is slow (~1-2 hr). Subsequent runs are cached.
           make HOST=x86_64-w64-mingw32 -j$(nproc) || {
             echo "=== depends/ build failed — last 80 lines ==="

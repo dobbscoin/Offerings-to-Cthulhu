@@ -92,9 +92,6 @@
 /* Define to 1 if you have the `mswsock' library (-lmswsock). */
 #undef HAVE_LIBMSWSOCK
 
-/* Define to 1 if you have the `natpmp' library (-lnatpmp). */
-#undef HAVE_LIBNATPMP
-
 /* Define to 1 if you have the `ole32' library (-lole32). */
 #undef HAVE_LIBOLE32
 
@@ -142,9 +139,6 @@
 
 /* Define this symbol if you have MSG_NOSIGNAL */
 #undef HAVE_MSG_NOSIGNAL
-
-/* Define to 1 if you have the <natpmp.h> header file. */
-#undef HAVE_NATPMP_H
 
 /* Define if you have POSIX threads libraries and header files. */
 #undef HAVE_PTHREAD
@@ -220,10 +214,6 @@
 
 /* Define if dbus support should be compiled in */
 #undef USE_DBUS
-
-/* NAT-PMP support not compiled if undefined, otherwise value (0 or 1)
-   determines default state */
-#undef USE_NATPMP
 
 /* Define if QR support should be compiled in */
 #undef USE_QRCODE
