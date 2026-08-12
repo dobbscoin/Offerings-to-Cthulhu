@@ -219,6 +219,13 @@ struct CNodeState {
     int nBlocksToDownload;
     int64_t nLastBlockReceive;
     int64_t nLastBlockProcess;
+    // The best block this peer has announced to us, as far as we can tell. NULL
+    // until they announce something we can place in mapBlockIndex. Reporting
+    // only -- nothing in the download path reads this.
+    CBlockIndex *pindexBestKnownBlock;
+    // Last block hash they announced that we could not place yet; resolved on a
+    // later call once it turns up in mapBlockIndex.
+    uint256 hashLastUnknownBlock;
 
     CNodeState() {
         nMisbehavior = 0;
@@ -227,6 +234,8 @@ struct CNodeState {
         nBlocksInFlight = 0;
         nLastBlockReceive = 0;
         nLastBlockProcess = 0;
+        pindexBestKnownBlock = NULL;
+        hashLastUnknownBlock = uint256(0);
     }
 };
 
@@ -288,6 +297,39 @@ void MarkBlockAsReceived(const uint256 &hash, NodeId nodeFrom = -1) {
 }
 
 // Requires cs_main.
+/** Resolve a previously-unplaceable announcement now that we may know the block. */
+void ProcessBlockAvailability(NodeId nodeid) {
+    CNodeState *state = State(nodeid);
+    assert(state != NULL);
+
+    if (state->hashLastUnknownBlock != uint256(0)) {
+        std::map<uint256, CBlockIndex*>::iterator itOld = mapBlockIndex.find(state->hashLastUnknownBlock);
+        if (itOld != mapBlockIndex.end() && itOld->second->nChainWork > 0) {
+            if (state->pindexBestKnownBlock == NULL || itOld->second->nChainWork >= state->pindexBestKnownBlock->nChainWork)
+                state->pindexBestKnownBlock = itOld->second;
+            state->hashLastUnknownBlock = uint256(0);
+        }
+    }
+}
+
+/** Record that a peer announced a block, for per-peer sync-height reporting. */
+void UpdateBlockAvailability(NodeId nodeid, const uint256 &hash) {
+    CNodeState *state = State(nodeid);
+    assert(state != NULL);
+
+    ProcessBlockAvailability(nodeid);
+
+    std::map<uint256, CBlockIndex*>::iterator it = mapBlockIndex.find(hash);
+    if (it != mapBlockIndex.end() && it->second->nChainWork > 0) {
+        // A block we know about was announced.
+        if (state->pindexBestKnownBlock == NULL || it->second->nChainWork >= state->pindexBestKnownBlock->nChainWork)
+            state->pindexBestKnownBlock = it->second;
+    } else {
+        // Unknown to us so far; assume the latest announcement is their best.
+        state->hashLastUnknownBlock = hash;
+    }
+}
+
 bool AddBlockToQueue(NodeId nodeid, const uint256 &hash) {
     if (mapBlocksToDownload.count(hash) || mapBlocksInFlight.count(hash))
         return false;
@@ -328,6 +370,8 @@ bool GetNodeStateStats(NodeId nodeid, CNodeStateStats &stats) {
     if (state == NULL)
         return false;
     stats.nMisbehavior = state->nMisbehavior;
+    ProcessBlockAvailability(nodeid);
+    stats.nSyncHeight = state->pindexBestKnownBlock ? state->pindexBestKnownBlock->nHeight : -1;
     return true;
 }
 
@@ -4189,6 +4233,13 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv)
 
             bool fAlreadyHave = AlreadyHave(inv);
             LogPrint("net", "  got inventory: %s  %s\n", inv.ToString(), fAlreadyHave ? "have" : "new");
+
+            if (inv.type == MSG_BLOCK) {
+                // Reporting only: remember the highest block this peer has told
+                // us about, whether or not we already had it. cs_main is already
+                // held for this whole loop.
+                UpdateBlockAvailability(pfrom->GetId(), inv.hash);
+            }
 
             if (!fAlreadyHave) {
                 if (!fImporting && !fReindex) {
