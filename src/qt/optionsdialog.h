@@ -9,6 +9,7 @@
 
 class MonitoredDataMapper;
 class OptionsModel;
+class QTimer;
 class QValidatedLineEdit;
 
 namespace Ui {
@@ -45,6 +46,8 @@ private slots:
     void clearStatusLabel();
     void updateDisplayUnit();
     void doProxyIpChecks(QValidatedLineEdit *pUiProxyIp, int nProxyPort);
+    /* Port mapping (issue #37 / #19): report what the mapper actually did. */
+    void updateMapPortStatus();
 
 signals:
     void proxyIpChecks(QValidatedLineEdit *pUiProxyIp, int nProxyPort);
@@ -54,6 +57,7 @@ private:
     OptionsModel *model;
     MonitoredDataMapper *mapper;
     bool fProxyIpValid;
+    QTimer *mapPortStatusTimer;
 };
 
 #endif // OPTIONSDIALOG_H

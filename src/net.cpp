@@ -20,6 +20,17 @@
 #include <fcntl.h>
 #endif
 
+#ifdef USE_NATPMP
+#include <natpmp.h>
+#endif
+
+#ifdef USE_UPNP
+#include <miniupnpc/miniupnpc.h>
+#include <miniupnpc/miniwget.h>
+#include <miniupnpc/upnpcommands.h>
+#include <miniupnpc/upnperrors.h>
+#endif
+
 #include <boost/filesystem.hpp>
 
 // Dump addresses to peers.dat every 15 minutes (900s)
@@ -1025,9 +1036,265 @@ void ThreadSocketHandler()
 }
 
 
+#if defined(USE_NATPMP) || defined(USE_UPNP)
+/** How long to wait before re-running discovery when no router answered at all. */
+static const int64_t MAPPORT_RETRY_MS = 20 * 60 * 1000;
+static const int64_t MAPPORT_REFRESH_MS = 20 * 60 * 1000;
 
+/** Last human-readable state of the port-mapping attempt.
+ *
+ *  The daemon has the debug log. The wallet needs something to put on screen:
+ *  a checkbox that silently does nothing looks identical to one that worked,
+ *  which is precisely the failure mode this build exists to avoid.
+ */
+static CCriticalSection cs_mapPortStatus;
+static std::string strMapPortStatus;
 
+static void SetMapPortStatus(const std::string& strStatus)
+{
+    LOCK(cs_mapPortStatus);
+    strMapPortStatus = strStatus;
+}
 
+std::string GetMapPortStatus()
+{
+    LOCK(cs_mapPortStatus);
+    return strMapPortStatus;
+}
+#endif
+
+#ifdef USE_NATPMP
+static const uint32_t NATPMP_MAPPING_LIFETIME_SECS = 3600;
+static const int64_t NATPMP_POLL_MS = 100;
+/** How long the gateway gets to answer before we give up and let UPnP try.
+ *
+ *  libnatpmp's own budget is ~128s of exponential backoff. That is the right
+ *  answer when NAT-PMP is the only option and far too long when it is the
+ *  first of two -- a router that actually speaks NAT-PMP answers in
+ *  milliseconds, so waiting two minutes only ever punishes the majority who
+ *  are going to end up on UPnP anyway.
+ */
+static const int64_t NATPMP_PROBE_MS = 4000;
+
+static int AwaitNatpmpResponse(natpmp_t *natpmp, natpmpresp_t *response, int64_t nTimeoutMs)
+{
+    const int64_t nStart = GetTimeMillis();
+    int r;
+    do {
+        MilliSleep(NATPMP_POLL_MS);
+        r = readnatpmpresponseorretry(natpmp, response);
+        if (r == NATPMP_TRYAGAIN && GetTimeMillis() - nStart >= nTimeoutMs)
+            return NATPMP_ERR_NOGATEWAYSUPPORT;
+    } while (r == NATPMP_TRYAGAIN);
+    return r;
+}
+
+static void NatpmpDiscoverExternalAddress(natpmp_t *natpmp)
+{
+    if (sendpublicaddressrequest(natpmp) < 0) {
+        LogPrintf("NAT-PMP: sendpublicaddressrequest() failed\n");
+        return;
+    }
+    natpmpresp_t response;
+    if (AwaitNatpmpResponse(natpmp, &response, NATPMP_PROBE_MS) != 0)
+        return;
+
+    CNetAddr external(response.pnu.publicaddress.addr);
+    LogPrintf("NAT-PMP: ExternalIPAddress = %s\n", external.ToString());
+    AddLocal(external, LOCAL_MAPPED);
+}
+
+/** Returns false if the gateway does not speak NAT-PMP, so the caller can fall
+ *  back to UPnP. If it does speak it, this runs until the thread is
+ *  interrupted and therefore never returns normally. */
+static bool RunNatpmp(uint16_t port)
+{
+    natpmp_t natpmp;
+    if (initnatpmp(&natpmp, 0, 0) != 0) {
+        LogPrintf("NAT-PMP: initnatpmp() failed - no usable gateway\n");
+        return false;
+    }
+
+    bool fMapped = false;
+    try {
+        if (fDiscover)
+            NatpmpDiscoverExternalAddress(&natpmp);
+
+        while (true) {
+            natpmpresp_t response;
+            int r = sendnewportmappingrequest(&natpmp, NATPMP_PROTOCOL_TCP, port, port,
+                                              NATPMP_MAPPING_LIFETIME_SECS);
+            r = (r < 0) ? NATPMP_ERR_NOGATEWAYSUPPORT
+                        : AwaitNatpmpResponse(&natpmp, &response, NATPMP_PROBE_MS);
+
+            if (r != 0) {
+                if (!fMapped) {
+                    // Never worked at all -- report unavailable so UPnP gets a turn.
+                    LogPrintf("NAT-PMP: no response for port %u, falling back\n", port);
+                    closenatpmp(&natpmp);
+                    return false;
+                }
+                LogPrintf("NAT-PMP: renewal for port %u failed with %d\n", port, r);
+                SetMapPortStatus(strprintf("NAT-PMP: renewal failed (%d)", r));
+            } else {
+                fMapped = true;
+                LogPrintf("NAT-PMP: mapped external port %u to local port %u for %us\n",
+                          response.pnu.newportmapping.mappedpublicport,
+                          response.pnu.newportmapping.privateport,
+                          response.pnu.newportmapping.lifetime);
+                SetMapPortStatus(strprintf("Mapped via NAT-PMP - external port %u",
+                                           response.pnu.newportmapping.mappedpublicport));
+            }
+            MilliSleep(MAPPORT_REFRESH_MS);
+        }
+    }
+    catch (boost::thread_interrupted)
+    {
+        if (fMapped) {
+            // A lifetime of zero is how NAT-PMP spells "drop this mapping".
+            int r = sendnewportmappingrequest(&natpmp, NATPMP_PROTOCOL_TCP, port, port, 0);
+            LogPrintf("NAT-PMP: mapping removal request returned %d\n", r);
+        }
+        closenatpmp(&natpmp);
+        throw;
+    }
+}
+#endif
+
+#ifdef USE_UPNP
+/** Returns false if no IGD answered discovery. Otherwise runs until the thread
+ *  is interrupted and never returns normally. */
+static bool RunUpnp(uint16_t port)
+{
+    std::string strPort = strprintf("%u", port);
+    const char * multicastif = 0;
+    const char * minissdpdpath = 0;
+    struct UPNPDev * devlist = 0;
+    char lanaddr[64];
+#if MINIUPNPC_API_VERSION >= 18
+    char wanaddr[64];
+#endif
+    int error = 0;
+#if MINIUPNPC_API_VERSION < 14
+    devlist = upnpDiscover(2000, multicastif, minissdpdpath, 0, 0, &error);
+#else
+    devlist = upnpDiscover(2000, multicastif, minissdpdpath, 0, 0, 2, &error);
+#endif
+    struct UPNPUrls urls;
+    struct IGDdatas data;
+    int r;
+#if MINIUPNPC_API_VERSION < 18
+    r = UPNP_GetValidIGD(devlist, &urls, &data, lanaddr, sizeof(lanaddr));
+#else
+    r = UPNP_GetValidIGD(devlist, &urls, &data, lanaddr, sizeof(lanaddr), wanaddr, sizeof(wanaddr));
+#endif
+    if (r != 1) {
+        LogPrintf("No valid UPnP IGDs found\n");
+        freeUPNPDevlist(devlist); devlist = 0;
+        if (r != 0)
+            FreeUPNPUrls(&urls);
+        return false;
+    }
+
+    if (fDiscover) {
+        char externalIPAddress[40];
+        r = UPNP_GetExternalIPAddress(urls.controlURL, data.first.servicetype, externalIPAddress);
+        if (r != UPNPCOMMAND_SUCCESS)
+            LogPrintf("UPnP: GetExternalIPAddress() returned %d\n", r);
+        else if (externalIPAddress[0]) {
+            LogPrintf("UPnP: ExternalIPAddress = %s\n", externalIPAddress);
+            AddLocal(CNetAddr(externalIPAddress), LOCAL_MAPPED);
+        }
+    }
+
+    std::string strDesc = "Offerings " + FormatFullVersion();
+    try {
+        while (true) {
+#ifndef UPNPDISCOVER_SUCCESS
+            /* miniupnpc 1.5 */
+            r = UPNP_AddPortMapping(urls.controlURL, data.first.servicetype,
+                                strPort.c_str(), strPort.c_str(), lanaddr, strDesc.c_str(), "TCP", 0);
+#else
+            /* miniupnpc 1.6 */
+            r = UPNP_AddPortMapping(urls.controlURL, data.first.servicetype,
+                                strPort.c_str(), strPort.c_str(), lanaddr, strDesc.c_str(), "TCP", 0, "0");
+#endif
+            if (r != UPNPCOMMAND_SUCCESS) {
+                LogPrintf("AddPortMapping(%s, %s, %s) failed with code %d (%s)\n",
+                    strPort, strPort, lanaddr, r, strupnperror(r));
+                SetMapPortStatus(strprintf("UPnP: mapping failed (%s)", strupnperror(r)));
+            } else {
+                LogPrintf("UPnP Port Mapping successful.\n");
+                SetMapPortStatus(strprintf("Mapped via UPnP - external port %s", strPort));
+            }
+            MilliSleep(MAPPORT_REFRESH_MS);
+        }
+    }
+    catch (boost::thread_interrupted)
+    {
+        r = UPNP_DeletePortMapping(urls.controlURL, data.first.servicetype, strPort.c_str(), "TCP", 0);
+        LogPrintf("UPNP_DeletePortMapping() returned : %d\n", r);
+        freeUPNPDevlist(devlist); devlist = 0;
+        FreeUPNPUrls(&urls);
+        throw;
+    }
+}
+#endif
+
+#if defined(USE_NATPMP) || defined(USE_UPNP)
+void ThreadMapPort()
+{
+    const uint16_t port = GetListenPort();
+
+    while (true) {
+#ifdef USE_NATPMP
+        SetMapPortStatus("Looking for a NAT-PMP router...");
+        RunNatpmp(port);   // only returns if NAT-PMP is unavailable
+#endif
+#ifdef USE_UPNP
+        SetMapPortStatus("Looking for a UPnP router...");
+        RunUpnp(port);     // only returns if no IGD answered
+#endif
+        SetMapPortStatus("No router responded (tried NAT-PMP, UPnP).");
+        LogPrintf("Port mapping: no router responded; retrying in %d minutes\n",
+                  (int)(MAPPORT_RETRY_MS / 60000));
+        MilliSleep(MAPPORT_RETRY_MS);
+    }
+}
+
+void MapPort(bool fUseMapPort)
+{
+    static boost::thread* mapport_thread = NULL;
+
+    if (fUseMapPort)
+    {
+        if (mapport_thread) {
+            mapport_thread->interrupt();
+            mapport_thread->join();
+            delete mapport_thread;
+        }
+        mapport_thread = new boost::thread(boost::bind(&TraceThread<void (*)()>, "mapport", &ThreadMapPort));
+    }
+    else if (mapport_thread) {
+        mapport_thread->interrupt();
+        mapport_thread->join();
+        delete mapport_thread;
+        mapport_thread = NULL;
+        SetMapPortStatus("Port mapping off.");
+    }
+}
+
+#else
+void MapPort(bool)
+{
+    // Intentionally left blank.
+}
+
+std::string GetMapPortStatus()
+{
+    return std::string();
+}
+#endif
 
 
 void ThreadDNSAddressSeed()
@@ -1599,6 +1866,12 @@ void StartNode(boost::thread_group& threadGroup)
     else
         threadGroup.create_thread(boost::bind(&TraceThread<void (*)()>, "dnsseed", &ThreadDNSAddressSeed));
 
+#if defined(USE_NATPMP) || defined(USE_UPNP)
+    // Ask the router to open our port: NAT-PMP first, UPnP as fallback. Off
+    // unless asked for. -natpmp and -upnp remain accepted spellings.
+    MapPort(GetBoolArg("-mapport", GetBoolArg("-natpmp", GetBoolArg("-upnp", false))));
+#endif
+
     // Send and receive from sockets, accept connections
     threadGroup.create_thread(boost::bind(&TraceThread<void (*)()>, "net", &ThreadSocketHandler));
 
@@ -1621,6 +1894,7 @@ void StartNode(boost::thread_group& threadGroup)
 bool StopNode()
 {
     LogPrintf("StopNode()\n");
+    MapPort(false);
     if (semOutbound)
         for (int i=0; i<MAX_OUTBOUND_CONNECTIONS; i++)
             semOutbound->post();
