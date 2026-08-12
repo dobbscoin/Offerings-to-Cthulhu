@@ -1088,6 +1088,22 @@ bool AppInit2(boost::thread_group& threadGroup)
     LogPrintf("Loaded %i addresses from peers.dat  %dms\n",
            addrman.size(), GetTimeMillis() - nStart);
 
+    uiInterface.InitMessage(_("Loading banlist..."));
+
+    nStart = GetTimeMillis();
+    {
+        CBanDB bandb;
+        banmap_t banmap;
+        if (!bandb.Read(banmap))
+            LogPrintf("Invalid or missing banlist.dat; recreating\n");
+        CNode::SetBanned(banmap);
+        CNode::SweepBanned();          // sweep out expired bans on startup
+        CNode::SetBannedSetDirty(false); // no need to write down, just read data
+        CNode::GetBanned(banmap);        // re-read post-sweep for an accurate count
+        LogPrintf("Loaded %i banned node ips from banlist.dat  %dms\n",
+               banmap.size(), GetTimeMillis() - nStart);
+    }
+
     // ********************************************************* Step 11: start node
 
     if (!CheckDiskSpace())
