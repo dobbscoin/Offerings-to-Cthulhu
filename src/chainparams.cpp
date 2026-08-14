@@ -39,9 +39,23 @@ unsigned int pnSeed[] =
     //      list is who a fresh client phones home to on first run; every
     //      operator we list can observe every new wallet's starting IP, so
     //      we don't bake in strangers regardless of how reachable they are.
-    0x4a4fc69f,   // 159.198.79.74  — Conclave seed (seed1.23skidoo.info)
-    0x06721441,   // 65.20.114.6    — Conclave seed (alternate)
-    0xe8d12246,   // 70.34.209.232  — Conclave seed (alternate)
+    // Verified 2026-08-12 by full version/verack handshake from chaos, on a
+    // residential uplink OUTSIDE the cluster — a fleet box cannot check this
+    // honestly, because CrowdSec's blanket drops make peers look unreachable
+    // from inside. Re-verify the same way before adding or removing an entry.
+    0x4a4fc69f,   // 159.198.79.74   — vps3   (seed1)
+    0x06721441,   // 65.20.114.6     — seed2 / seed7
+    0x9465db43,   // 67.219.101.148  — vps2   (seed3 / seed8)
+    0xe8d12246,   // 70.34.209.232   — vps1   (seed4 / seed9)
+    0x3dc42246,   // 70.34.196.61    — seed5 / seed10
+    0x15d4114e,   // 78.17.212.21    — vps5 guru
+    //
+    // All six are Conclave-operated, and that is not a preference: on
+    // 2026-08-12 no third-party node on this network accepted an inbound
+    // connection at all (120.243.241.96 and 38.15.41.236, the only non-Conclave
+    // peers then connected, both timed out — they dial out from behind NAT).
+    // Operator diversity therefore cannot be fixed here; it needs external DNS
+    // seeders, which issue #27 puts out of scope.
 };
 
 static const unsigned int timeMainGenesisBlock = 1379187075;
@@ -94,7 +108,11 @@ public:
         vSeeds.push_back(CDNSSeedData("seed3.23skidoo.info", "seed3.23skidoo.info"));
         vSeeds.push_back(CDNSSeedData("seed4.23skidoo.info", "seed4.23skidoo.info"));
         vSeeds.push_back(CDNSSeedData("seed5.23skidoo.info", "seed5.23skidoo.info"));
-        vSeeds.push_back(CDNSSeedData("23skidoo.subgenius.vip", "23skidoo.subgenius.vip"));
+        // seed6 replaces 23skidoo.subgenius.vip, which had no A record at all
+        // (checked 2026-08-13) and cost every fresh client a DNS timeout.
+        // seed6.23skidoo.info already existed in the zone, pointing at vps5 —
+        // it was simply never listed here, so nothing ever queried it.
+        vSeeds.push_back(CDNSSeedData("seed6.23skidoo.info", "seed6.23skidoo.info"));
         vSeeds.push_back(CDNSSeedData("seed7.23skidoo.info", "seed7.23skidoo.info"));
         vSeeds.push_back(CDNSSeedData("seed8.23skidoo.info", "seed8.23skidoo.info"));
         vSeeds.push_back(CDNSSeedData("seed9.23skidoo.info", "seed9.23skidoo.info"));

@@ -36,6 +36,13 @@
 // Dump addresses to peers.dat every 15 minutes (900s)
 #define DUMP_ADDRESSES_INTERVAL 900
 
+/** Below this many addrman entries we treat bootstrap as having failed and
+ *  re-inject the fixed seeds. Sized to be clearly more than a seed round-trip
+ *  returns, and clearly less than a healthy addrman. */
+#define MIN_ADDRMAN_FOR_BOOTSTRAP 50
+/** How long before the fixed seeds may be injected again. */
+#define FIXED_SEED_REINJECT_INTERVAL (60 * 60)
+
 #if !defined(HAVE_MSG_NOSIGNAL) && !defined(MSG_NOSIGNAL)
 #define MSG_NOSIGNAL 0
 #endif
@@ -1318,13 +1325,25 @@ void ThreadOpenConnections()
         CSemaphoreGrant grant(*semOutbound);
         boost::this_thread::interruption_point();
 
-        // Add seed nodes if DNS seeds are all down (an infrastructure attack?).
-        if (addrman.size() == 0 && (GetTime() - nStart > 60)) {
-            static bool done = false;
-            if (!done) {
-                LogPrintf("Adding fixed seed nodes as DNS doesn't seem to be available.\n");
+        // Fall back to the fixed seeds when we have too few addresses to
+        // bootstrap from.
+        //
+        // This used to fire only at addrman.size() == 0, once per process. That
+        // catches a total DNS outage and nothing else: the common failure is a
+        // PARTIAL success, where the seeds resolve but hand back mostly dead
+        // IPs. addrman is then non-empty, the gate stays shut, and a fresh
+        // client sits on a handful of unusable addresses whose getaddr replies
+        // contain the same dead set. That is the stall reported in issue #27.
+        //
+        // Firing below a threshold instead, and re-arming on a cooldown rather
+        // than once per process, also lets a long-running client that has aged
+        // out its addrman recover without a restart.
+        if (addrman.size() < MIN_ADDRMAN_FOR_BOOTSTRAP && (GetTime() - nStart > 60)) {
+            static int64_t nLastFixedSeedInject = 0;
+            if (GetTime() - nLastFixedSeedInject > FIXED_SEED_REINJECT_INTERVAL) {
+                LogPrintf("Adding fixed seed nodes; addrman holds only %d addresses\n", addrman.size());
                 addrman.Add(Params().FixedSeeds(), CNetAddr("127.0.0.1"));
-                done = true;
+                nLastFixedSeedInject = GetTime();
             }
         }
 
