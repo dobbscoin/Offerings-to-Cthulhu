@@ -1259,8 +1259,15 @@ static const int64_t nInterval = nTargetTimespan / nTargetSpacing; // 20 blocks
 // height paid in full to the worshipper who mines it. Recurs every ~6 months. The bounty is
 // ADDITIVE on top of the locked 1.5 OFF base, and goes entirely to the miner; the Conclave
 // Treasury's 1/8 share is computed on the base only and is unaffected. Returns 0 for every
-// ordinary block, and for everything below the first cycle, so it is inert (chain-identical
-// to the un-patched binary) until ~block 1,270,346.
+// ordinary block, and for everything below the first cycle.
+//
+// Inert window, derived from FIRST_FINALE below -- re-derive BOTH if that constant moves:
+//   1,101,346  first height this function evaluates (FIRST_FINALE - 28*DAY). Day 28 of the
+//              rite pays nothing, so the subsidy here is still chain-identical.
+//   1,104,226  FIRST BLOCK WHOSE SUBSIDY DIFFERS (+1 OFF, day 26). This -- not the line
+//              above -- is the consensus divergence point: a node without this code
+//              rejects it. RitualBonus has shipped since v2.0.8.1.
+//   1,141,666  the finale, +10,000 OFF. Cycle 1 pays 27 blocks / 15,777 OFF total.
 static int64_t RitualBonus(int nHeight)
 {
     if (!IsAfterRestorationFork(nHeight)) return 0;
