@@ -77,7 +77,7 @@ The Treasury is a 2-of-3 multisig (`4fZqDjscS9ANR59xNFJxZ2HmrhuDwWUJB4`) funded 
 
 ## IX. Governance
 
-The Conclave stewards the chain and says so without costume: it holds the checkpoint key, the treasury majority, and the canonical repository. What it does not hold: mining (permissionless since block 1,050,666), the consensus rules (public source, activation by published height), your keys, or your history (every claim above is verifiable from chain data and archives). Contributors have already shaped this chain's revival through merged code and sharp review, and the [repository](https://github.com/SubGeniusFinance/Offerings-to-Cthulhu) is open to more. The path away from stated trust runs through more independent nodes, more miners, and more hands in the source — in that order.
+The Conclave stewards the chain and says so without costume: it holds the checkpoint key, the treasury majority, and the canonical repository. What it does not hold: mining (permissionless since block 1,050,666), the consensus rules (public source, activation by published height), your keys, or your history (every claim above is verifiable from chain data and archives). Contributors have already shaped this chain's revival through merged code and sharp review, and the [repository](https://github.com/dobbscoin/Offerings-to-Cthulhu) is open to more. The path away from stated trust runs through more independent nodes, more miners, and more hands in the source — in that order.
 
 ## X. Disclaimer
 

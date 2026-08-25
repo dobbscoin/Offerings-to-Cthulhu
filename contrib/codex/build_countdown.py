@@ -35,7 +35,7 @@ FOOTER_HTML = """<footer class="site-foot">
 <li><a href="https://23skidoo.info/" target="_blank" rel="noopener" aria-label="Offerings to Cthulhu"><img src="https://23skidoo.info/static/img/off_240x240.png" alt="Offerings to Cthulhu"></a></li>
 <li><a href="https://pool.23skidoo.info/" target="_blank" rel="noopener" aria-label="OFF Mining Pool"><img src="https://api.iconify.design/mdi/pickaxe.svg?color=%235fffd0" alt="Pool"></a></li>
 <li><a href="https://23skidoo.info/codex/" target="_blank" rel="noopener" aria-label="The Codex"><img src="https://cdn.simpleicons.org/bookstack/5fffd0" alt="Codex"></a></li>
-<li><a href="https://github.com/SubGeniusFinance/Offerings-to-Cthulhu" target="_blank" rel="noopener" aria-label="GitHub"><img src="https://cdn.simpleicons.org/github/5fffd0" alt="GitHub"></a></li>
+<li><a href="https://github.com/dobbscoin/Offerings-to-Cthulhu" target="_blank" rel="noopener" aria-label="GitHub"><img src="https://cdn.simpleicons.org/github/5fffd0" alt="GitHub"></a></li>
 </ul>
 </footer>"""
 
@@ -382,7 +382,7 @@ def render_postfork():
   <div class="rules" style="border-left:3px solid var(--gold);">
     <div class="eyebrow" style="margin-bottom:.6em; color:var(--gold)">How worshippers can help</div>
     <ul>
-      <li>&#128640; <strong>Run a node.</strong> Every wallet running {RELEASE_TAG} is another voice reciting the rite. Hashrate concentrates; node count distributes. <a href="https://github.com/SubGeniusFinance/Offerings-to-Cthulhu/releases/latest">Download the wallet &rarr;</a></li>
+      <li>&#128640; <strong>Run a node.</strong> Every wallet running {RELEASE_TAG} is another voice reciting the rite. Hashrate concentrates; node count distributes. <a href="https://github.com/dobbscoin/Offerings-to-Cthulhu/releases/latest">Download the wallet &rarr;</a></li>
       <li>&#9935;&#65039; <strong>Mine on the pool.</strong> <code>stratum+tcp://pool.23skidoo.info:3040</code> &mdash; Quark, PPLNS, 0.1 OFF minimum payout. Every pool block carries the Codex&rsquo;s Dreaming verses automatically. <a href="https://pool.23skidoo.info/">pool.23skidoo.info &rarr;</a></li>
       <li>&#127769; <strong>File a Reclamation claim.</strong> If you ever held OFF on the original chain, the Conclave Treasury has a budget for you. WR-A formula-driven, Class-B discretionary, gap-era recovery hooks. <a href="/bridge/">Verify a claim &rarr;</a></li>
       <li>&#128083; <strong>Read the Codex.</strong> The chain is transcribing the Lovecraft canon, fragment by fragment. Forty-seven thousand blocks of public-domain horror, ending in an inheritance: the chain&rsquo;s own voice. <a href="/codex/">The Library &rarr;</a></li>
@@ -393,10 +393,10 @@ def render_postfork():
 
   <h2 style="font-size:1rem; color:var(--dim); letter-spacing:.18em; text-transform:uppercase; margin-top:2.4em;">Get the wallet &mdash; {RELEASE_TAG}</h2>
   <div class="release-row">
-    <a class="release-btn" href="https://github.com/SubGeniusFinance/Offerings-to-Cthulhu/releases/download/{RELEASE_TAG}/Offerings-daemon-{RELEASE_TAG}-linux64.tar.gz">Linux daemon</a>
-    <a class="release-btn" href="https://github.com/SubGeniusFinance/Offerings-to-Cthulhu/releases/download/{RELEASE_TAG}/Offerings-qt-{RELEASE_TAG}-linux64.tar.gz">Linux GUI</a>
-    <a class="release-btn" href="https://github.com/SubGeniusFinance/Offerings-to-Cthulhu/releases/download/{RELEASE_TAG}/Offerings-{RELEASE_TAG}-win64.zip">Windows GUI</a>
-    <a class="release-btn" href="https://github.com/SubGeniusFinance/Offerings-to-Cthulhu/releases/latest">All assets &amp; SHA256SUMS</a>
+    <a class="release-btn" href="https://23skidoo.info/downloads/{RELEASE_TAG}/Offerings-daemon-{RELEASE_TAG}-linux64.tar.gz">Linux daemon</a>
+    <a class="release-btn" href="https://23skidoo.info/downloads/{RELEASE_TAG}/Offerings-qt-{RELEASE_TAG}-linux64.tar.gz">Linux GUI</a>
+    <a class="release-btn" href="https://23skidoo.info/downloads/{RELEASE_TAG}/Offerings-{RELEASE_TAG}-win64.zip">Windows GUI</a>
+    <a class="release-btn" href="https://github.com/dobbscoin/Offerings-to-Cthulhu/releases/latest">All assets &amp; SHA256SUMS</a>
   </div>
 
   <div class="foot">He awoke at <strong>{awakening_str}</strong> &middot; the chain breathes at {bpm:.2f} blocks/min &middot; the page refreshes every minute.<br>

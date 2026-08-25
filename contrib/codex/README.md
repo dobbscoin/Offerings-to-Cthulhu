@@ -46,7 +46,7 @@ and secrets stay off GitHub.
 
 1. Edit the script here in the repo (`~/claude/offerings-master/contrib/codex/`)
 2. Test by running the script manually from any cwd — it should still find the corpus
-3. `git add` + commit + push to `SubGeniusFinance/Offerings-to-Cthulhu`
+3. `git add` + commit + push to `dobbscoin/Offerings-to-Cthulhu`
 4. Crons pick up the change on the next minute boundary
 
 No deploy step needed — the scripts run in-place from the canonical repo.

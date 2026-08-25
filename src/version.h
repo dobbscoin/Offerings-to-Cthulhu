@@ -28,7 +28,7 @@ extern const std::string CLIENT_DATE;
 
 // static const int PROTOCOL_VERSION = 70002; // 1.1.0 - https://github.com/CatmanIX/offerings
 // static const int PROTOCOL_VERSION = 80001; //  Pre-fork - 1.6.2 - (thegreatoldone) https://web.archive.org/web/20151118225613/https://codeload.github.com/thegreatoldone/offerings/zip/master
-// static const int PROTOCOL_VERSION = 80002; //  Post-Restoration self-ID stub - https://github.com/SubGeniusFinance/Offerings-to-Cthulhu/pull/12
+// static const int PROTOCOL_VERSION = 80002; //  Post-Restoration self-ID stub - https://github.com/dobbscoin/Offerings-to-Cthulhu/pull/12
 static const int PROTOCOL_VERSION = 90003;
 
 // intial proto version, to be increased after version/verack negotiation
