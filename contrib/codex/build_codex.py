@@ -5,7 +5,8 @@ milestone "Descent" verses (blocks 999991..1000000), shown separately. Increment
 import subprocess, json, html, os, time
 
 STATE_DIR = "/home/btcbob/codex"   # runtime caches (gitignored by location)
-CLI    = "/home/btcbob/claude/offerings-master/src/Offerings-cli"
+CLI    = "/usr/local/bin/Offerings-cli"   # Phase B 2026-08-16: installed artifact, not the git tree
+DDIR = "-datadir=/var/lib/offeringsd"   # Phase B: btcbob no longer has a default datadir
 ANCHOR = 1000001
 FORK   = 1000000
 MILE   = 0xFFFFFFFF
@@ -13,7 +14,7 @@ OUT    = "/var/www/23skidoo.info/codex/index.html"
 CACHE  = os.path.join(STATE_DIR, "codex_cache.json")
 MAGIC  = b"OFF1"
 
-def cli(*a):  return subprocess.check_output([CLI, *a], text=True, timeout=30).strip()
+def cli(*a):  return subprocess.check_output([CLI, DDIR, *a], text=True, timeout=30).strip()
 def cj(*a):   return json.loads(cli(*a))
 
 def decode(hexstr):

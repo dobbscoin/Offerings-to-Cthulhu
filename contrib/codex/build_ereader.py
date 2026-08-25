@@ -128,7 +128,8 @@ HEADER_CSS = """
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))   # contrib/codex/ in canonical repo
 STATE_DIR  = "/home/btcbob/codex"                         # runtime caches + logs + secrets (gitignored by location)
-CLI      = "/home/btcbob/claude/offerings-master/src/Offerings-cli"
+CLI      = "/usr/local/bin/Offerings-cli"   # Phase B 2026-08-16: installed artifact, not the git tree
+DDIR     = "-datadir=/var/lib/offeringsd"       # Phase B: btcbob no longer has a default datadir
 CORPUS   = os.path.join(SCRIPT_DIR, "codex_corpus.txt")
 MANIFEST = os.path.join(SCRIPT_DIR, "codex_manifest.json")
 CACHE    = os.path.join(STATE_DIR, "ereader_cache.json")
@@ -149,7 +150,7 @@ SEAL_PLACEHOLDER_HTML = (
 )
 
 def cli(*a):
-    try: return subprocess.check_output([CLI,*a],text=True,timeout=30).strip()
+    try: return subprocess.check_output([CLI,DDIR,*a],text=True,timeout=30).strip()
     except Exception: return ""
 
 # ---- on-chain inscription progress (contiguous chunks from idx 0) ------------

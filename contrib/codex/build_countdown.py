@@ -69,7 +69,8 @@ MQ_COUNTDOWN = "@media (max-width:640px){h1{font-size:1.5rem}.chant{font-size:.9
 
 
 STATE_DIR = "/home/btcbob/codex"   # runtime cache (gitignored by location)
-CLI   = "/home/btcbob/claude/offerings-master/src/Offerings-cli"
+CLI   = "/usr/local/bin/Offerings-cli"   # Phase B 2026-08-16: installed artifact, not the git tree
+DDIR  = "-datadir=/var/lib/offeringsd"       # Phase B: btcbob no longer has a default datadir
 FORK  = 1000000
 OFFSIG_END = 1050666
 CANON_END  = 1047248      # last canon chunk inscribed; the Dreaming begins at +1
@@ -82,7 +83,7 @@ OUT   = "/var/www/23skidoo.info/awakening/index.html"
 CACHE = os.path.join(STATE_DIR, "countdown_cache.json")
 
 def cli(*a):
-    return subprocess.check_output([CLI, *a], text=True, timeout=30).strip()
+    return subprocess.check_output([CLI, DDIR, *a], text=True, timeout=30).strip()
 
 now = int(time.time())
 tip = int(cli("getblockcount"))
@@ -227,7 +228,7 @@ def render_postfork():
     try:
         fork_hash = cli("getblockhash", str(FORK))
         fork_blk  = json.loads(subprocess.check_output(
-            [CLI, "getblock", fork_hash], text=True, timeout=30))
+            [CLI, DDIR, "getblock", fork_hash], text=True, timeout=30))
         awakening_ts = int(fork_blk["time"])
     except Exception:
         # If the daemon ever loses block 1,000,000, fall back to the ts we
@@ -244,7 +245,7 @@ def render_postfork():
         """Actual timestamp of an already-mined block, formatted; fallback literal if RPC fails."""
         try:
             bh  = cli("getblockhash", str(height))
-            blk = json.loads(subprocess.check_output([CLI, "getblock", bh], text=True, timeout=30))
+            blk = json.loads(subprocess.check_output([CLI, DDIR, "getblock", bh], text=True, timeout=30))
             return time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime(int(blk["time"])))
         except Exception:
             return fallback

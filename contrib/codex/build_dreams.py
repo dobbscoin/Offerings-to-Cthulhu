@@ -10,7 +10,8 @@ Output: /var/www/23skidoo.info/static/dreams.json
 """
 import subprocess, json, os
 
-CLI      = "/home/btcbob/claude/offerings-master/src/Offerings-cli"
+CLI      = "/usr/local/bin/Offerings-cli"   # Phase B 2026-08-16: installed artifact, not the git tree
+DDIR = "-datadir=/var/lib/offeringsd"   # Phase B: btcbob no longer has a default datadir
 OUT      = "/var/www/23skidoo.info/static/dreams.json"
 CACHE    = "/home/btcbob/codex/dreams_cache.json"
 MAGIC    = b"OFF1"
@@ -18,7 +19,7 @@ DREAMING = 0xFFFFFFFE
 KEEP     = 40      # verses to publish
 SCAN_MAX = 400     # deepest first-run backscan
 
-def cli(*a):  return subprocess.check_output([CLI, *a], text=True, timeout=30).strip()
+def cli(*a):  return subprocess.check_output([CLI, DDIR, *a], text=True, timeout=30).strip()
 def cj(*a):   return json.loads(cli(*a))
 
 def decode(hexstr):

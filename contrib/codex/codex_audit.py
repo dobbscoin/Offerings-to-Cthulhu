@@ -10,7 +10,8 @@ import subprocess
 import time
 from pathlib import Path
 
-CLI = "/home/btcbob/claude/offerings-master/src/Offerings-cli"
+CLI = "/usr/local/bin/Offerings-cli"   # Phase B 2026-08-16: installed artifact, not the git tree
+DDIR = "-datadir=/var/lib/offeringsd"   # Phase B: btcbob no longer has a default datadir
 CORPUS_PATH = Path("/home/btcbob/claude/offerings-master/contrib/codex/codex_corpus.txt")
 CHUNK = 48
 CODEX_DESCENT_START = 999_991
@@ -32,7 +33,7 @@ DESCENT = {
 }
 
 def cli(*args):
-    r = subprocess.run([CLI, *args], capture_output=True, text=True, timeout=30)
+    r = subprocess.run([CLI, DDIR, *args], capture_output=True, text=True, timeout=30)
     if r.returncode != 0:
         raise RuntimeError(f"cli failed: {' '.join(args)}: {r.stderr.strip()}")
     return r.stdout.strip()
