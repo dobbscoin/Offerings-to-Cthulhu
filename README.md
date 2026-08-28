@@ -41,7 +41,7 @@ Any v1.6.2 or v2.0.0 wallet binary, anywhere on Earth, will find the network on 
 
 ### Windows — shipping now
 
-Latest Windows release: **[github.com/dobbscoin/Offerings-to-Cthulhu/releases/latest](https://github.com/dobbscoin/Offerings-to-Cthulhu/releases/latest)**
+Latest Windows release: **[github.com/dobbscoin/Offerings-to-Cthulhu/releases/latest](https://23skidoo.info/downloads/)**
 
 Carries the Restoration Hardfork consensus rules + the Conclave Signed Window. Auto-routes through the fork at block 1,000,000; no second download required. SHA256 hashes for every binary are published in `SHA256SUMS-windows.txt` on the release page.
 
@@ -276,7 +276,7 @@ The `depends/` cross-compile is reproducible end-to-end via `.github/workflows/w
 Quick path (full recipe in [`doc/build-unix.md`](doc/build-unix.md), modernization workarounds included):
 
 ```bash
-git clone https://github.com/dobbscoin/Offerings-to-Cthulhu offerings
+git clone https://git.subgenius.finance/SubGeniusFinance/Offerings-to-Cthulhu offerings
 cd offerings
 ./autogen.sh
 ./configure

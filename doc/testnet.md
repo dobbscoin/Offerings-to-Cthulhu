@@ -16,7 +16,7 @@ Use it to exercise the `v2.0.x-rc-bipsoft` consensus bundle (#32 + #33 +
 
 ```bash
 # Clone, build (see doc/build-unix.md for prerequisites)
-git clone https://github.com/dobbscoin/Offerings-to-Cthulhu.git
+git clone https://git.subgenius.finance/SubGeniusFinance/Offerings-to-Cthulhu.git
 cd Offerings-to-Cthulhu
 git checkout feat/v2.0.x-rc-bipsoft   # or whatever rc tag is current
 ./autogen.sh && ./configure --without-gui --disable-tests

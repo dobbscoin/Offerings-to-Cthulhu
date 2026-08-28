@@ -44,7 +44,7 @@ Everything the issue body claimed checks out, plus these deltas:
 
 ## Donor tree: dobbscoin-source (added same day)
 
-The sibling project's tree (github.com/SubGeniusFinance/dobbscoin-source,
+The sibling project's tree (git.subgenius.finance/SubGeniusFinance/dobbscoin-source,
 a genuine upstream Bitcoin Core 0.10 layout, **already modernized to
 build against OpenSSL 3** in its v0.10.3/v0.10.4 releases) contains
 working, maintainer-owned implementations of most of what this plan

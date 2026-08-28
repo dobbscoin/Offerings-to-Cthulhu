@@ -11,7 +11,7 @@ The Offerings to Cthulhu (OFF) chain went dormant in 2015 and was 51%-counterfei
 in May 2018. A community Conclave has revived it as the **Restoration Hardfork v2.0.0**,
 forking from the recovered block-966,413 chainstate (Wayback 2015-09-13 snapshot).
 
-Canonical source & live network: https://github.com/dobbscoin/Offerings-to-Cthulhu
+Canonical source & live network: https://git.subgenius.finance/SubGeniusFinance/Offerings-to-Cthulhu
 Site / countdown / Chain Codex: https://23skidoo.info/
 
 What v2.0.0 changes at the fork (block 1,000,000), fully transparent in the diff:
