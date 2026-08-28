@@ -23,7 +23,7 @@ FOOTER_HTML = """<footer class="site-foot">
 <li><a href="https://23skidoo.info/" target="_blank" rel="noopener" aria-label="Offerings to Cthulhu"><img src="https://23skidoo.info/static/img/off_240x240.png" alt="Offerings to Cthulhu"></a></li>
 <li><a href="https://pool.23skidoo.info/" target="_blank" rel="noopener" aria-label="OFF Mining Pool"><img src="https://api.iconify.design/mdi/pickaxe.svg?color=%235fffd0" alt="Pool"></a></li>
 <li><a href="https://23skidoo.info/codex/" target="_blank" rel="noopener" aria-label="The Codex"><img src="https://cdn.simpleicons.org/bookstack/5fffd0" alt="Codex"></a></li>
-<li><a href="https://git.subgenius.finance/SubGeniusFinance/Offerings-to-Cthulhu" target="_blank" rel="noopener" aria-label="GitHub"><img src="https://cdn.simpleicons.org/github/5fffd0" alt="GitHub"></a></li>
+<li><a href="https://git.subgenius.finance/SubGeniusFinance/Offerings-to-Cthulhu" target="_blank" rel="noopener" aria-label="Source code"><img src="https://cdn.simpleicons.org/forgejo/5fffd0" alt="Source code"></a></li>
 </ul>
 </footer>"""
 
@@ -43,7 +43,7 @@ NAV_FALLBACK = """<nav class="sitenav">
   <span class="sitenav-row">
     <a class="btn" href="https://explorer.23skidoo.info/" target="_blank" rel="noopener">BLOCK EXPLORER</a>
     <a class="btn" href="https://pool.23skidoo.info/" target="_blank" rel="noopener">MINING POOL</a>
-    <a class="btn" href="https://git.subgenius.finance/SubGeniusFinance/Offerings-to-Cthulhu" target="_blank" rel="noopener">GITHUB SOURCE</a>
+    <a class="btn" href="https://git.subgenius.finance/SubGeniusFinance/Offerings-to-Cthulhu" target="_blank" rel="noopener">SOURCE CODE</a>
     <a class="btn" href="https://23skidoo.info/downloads/" target="_blank" rel="noopener">WALLETS</a>
   </span>
   <a class="btn btn-rlyehian" href="/rlyehian/">R&rsquo;LYEHIAN TRANSLATOR</a>
