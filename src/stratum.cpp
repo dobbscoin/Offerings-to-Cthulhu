@@ -30,6 +30,7 @@ CStratumClient::CStratumClient()
     : nPort(0),
       fConnected(false),
       fAuthorized(false),
+      fSessionAuthorized(false),
       dDifficulty(0.0),
       nExtraNonce2Size(0),
       nJobsReceived(0),
@@ -180,28 +181,47 @@ void CStratumClient::ThreadStratum()
 
     int64_t nBackoff = 5;
     while (!fShutdown) {
-        RunSession();
+        bool fWorked = RunSession();
         if (fShutdown)
             break;
+        // Decide BEFORE sleeping. The old code recomputed after the sleep, so
+        // the delay always used the previous iteration's value and a long
+        // healthy session still ate whatever penalty the ladder had climbed to.
+        // Reset only on a session that AUTHORIZED: a pool that accepts the
+        // socket and then drops it (miningcore does exactly that for a banned
+        // IP, and bans for 60s on an unauthorized worker) must still escalate,
+        // or a mistyped payout address becomes 12 reconnects a minute forever.
+        nBackoff = fWorked ? 5 : std::min<int64_t>(nBackoff * 2, 60);
         LogPrintf("stratum: disconnected, reconnecting in %ds\n", (int)nBackoff);
         for (int64_t i = 0; i < nBackoff * 10 && !fShutdown; i++)
             MilliSleep(100);
-        nBackoff = std::min<int64_t>(nBackoff * 2, 60); // 5,10,20,40,60,60,...
-        {
-            LOCK(cs);
-            if (fConnected)
-                nBackoff = 5; // last session got somewhere; restart the ladder
-        }
     }
     LogPrintf("stratum: client thread exiting\n");
 }
 
-void CStratumClient::RunSession()
+bool CStratumClient::RunSession()
 {
     {
         LOCK(cs);
         fConnected = false;
         fAuthorized = false;
+        fSessionAuthorized = false;
+        // Drop every scrap of the previous session. The worker readiness gate
+        // only tests that these are present, so leaving them set means workers
+        // resume the DEAD session's job and extranonce the moment authorize
+        // succeeds on the new one -- every such share is rejected as
+        // "job not found" until the first mining.notify arrives.
+        strExtraNonce1.clear();
+        nExtraNonce2Size = 0;
+        currentJob = StratumJob();
+        // Stays 0.0 on purpose: the readiness gate requires dDiff > 0.0, so
+        // workers idle until the pool announces a difficulty. Do NOT seed this
+        // with the nominal stratum default of 1 -- the bound below is
+        // DIFF1_TARGET * SHARE_MULTIPLIER / dDiff, so difficulty 1 qualifies
+        // roughly one hash in 65536 and floods the pool with invalid submits.
+        dDifficulty = 0.0;
+        // Invalidate work in flight so workers re-snapshot immediately.
+        nJobsReceived++;
     }
 
     try {
@@ -272,6 +292,8 @@ void CStratumClient::RunSession()
         if (!fShutdown)
             LogPrintf("stratum: session error: %s\n", e.what());
     }
+    LOCK(cs);
+    return fSessionAuthorized;
 }
 
 void CStratumClient::HandleLine(const std::string& strLine)
@@ -341,6 +363,24 @@ void CStratumClient::HandleLine(const std::string& strLine)
 
     if (valError.type() != null_type) {
         std::string strErr = write_string(valError, false);
+        if (nId >= 10) {
+            // A rejected mining.submit. This branch used to return before the
+            // nId>=10 accounting below, so rejects landed in neither counter
+            // and the UI read "accepted 0 / rejected 0" whether or not anything
+            // was wrong. Deliberately does NOT touch strLastError: that is the
+            // connection status the GUI shows, and one bad share is not a
+            // connection failure.
+            int64_t nAcc, nRej;
+            {
+                LOCK(cs);
+                nSharesRejected++;
+                nAcc = nSharesAccepted;
+                nRej = nSharesRejected;
+            }
+            LogPrintf("stratum: share rejected: %s (accepted %d / rejected %d)\n",
+                      strErr, (int)nAcc, (int)nRej);
+            return;
+        }
         LOCK(cs);
         strLastError = strErr;
         LogPrintf("stratum: request id %d rejected: %s\n", (int)nId, strErr);
@@ -364,6 +404,11 @@ void CStratumClient::HandleLine(const std::string& strLine)
         {
             LOCK(cs);
             fAuthorized = fOk;
+            // Sticky for the lifetime of this session: fAuthorized is cleared
+            // on the way out, but the reconnect ladder needs to know the
+            // session was genuinely productive, not merely TCP-connected.
+            if (fOk)
+                fSessionAuthorized = true;
         }
         LogPrintf("stratum: authorize %s for %s\n", fOk ? "ACCEPTED" : "REJECTED", strUser);
     } else if (nId >= 10) {
@@ -415,8 +460,19 @@ bool CStratumClient::SubmitShare(const std::string& strJobId, const std::string&
 
 // Bitcoin difficulty-1 target (0x00000000ffff0000…) as a double; Miningcore's
 // share test for this coin is diff1 / quark(header) >= 0.99 * vardiff
-// (shareMultiplier is 1 in the pool's coin definition).
+// (see SHARE_MULTIPLIER below).
 static const double DIFF1_TARGET = 65535.0 * std::pow(2.0, 208.0);
+
+// Miningcore scores a share as (DIFF1_TARGET / quark(header)) * shareMultiplier
+// >= 0.99 * vardiff, where shareMultiplier comes from the pool coin template.
+// For (OFF) quark it is 256, NOT 1 as the comment above previously asserted.
+// That error made the client bar 256x stricter than the pool bar, so it
+// submitted about one share for every 256 it should have and was paid 256x
+// less -- while still landing shares, so nothing looked wrong. Confirmed
+// against the live pool 2026-09-08: with the bound corrected, 246 shares
+// accepted and 0 rejected in 30 seconds.
+// (BOB)/scrypt uses 65536 -- change this if pointing the client at that pool.
+static const double SHARE_MULTIPLIER = 256.0;
 
 //! Stratum prevhash (dword-order-reversed RPC hash) → uint256 (internal LE),
 //! per research/stratum-dialect-probe-2026-08-07.md: reversing the 8 words
@@ -522,7 +578,7 @@ void CStratumClient::ThreadWorker(int nWorkerId)
 
         // Share bound: quark(header) <= diff1/vardiff. Compared in doubles —
         // plenty for share screening; the pool revalidates every submit.
-        const double dTargetBound = DIFF1_TARGET / dDiff;
+        const double dTargetBound = DIFF1_TARGET * SHARE_MULTIPLIER / dDiff;
 
         for (uint32_t nNonce = 0; !fShutdown; nNonce++) {
             header.nNonce = nNonce;
