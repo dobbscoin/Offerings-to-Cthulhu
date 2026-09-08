@@ -78,7 +78,7 @@ private:
     void ThreadStratum();
     //! One connect→subscribe→authorize→read-loop session. Returns on error
     //! or shutdown; caller decides whether to reconnect.
-    void RunSession();
+    bool RunSession();   //!< true if the session AUTHORIZED, not merely connected
     void HandleLine(const std::string& strLine);
     void ThreadWorker(int nWorkerId);
     //! Serialize a submit line onto the live session socket (thread-safe).
@@ -97,6 +97,7 @@ private:
 
     bool fConnected;
     bool fAuthorized;
+    bool fSessionAuthorized;  //!< sticky: this session reached authorize
     double dDifficulty;
     std::string strExtraNonce1;
     int nExtraNonce2Size;
