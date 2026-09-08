@@ -9,7 +9,7 @@ NO_WALLET ?=
 NO_NATPMP ?=
 NO_UPNP ?=
 USE_LINUX_STATIC_QT5 ?=
-FALLBACK_DOWNLOAD_PATH ?= https://bitcoincore.org/depends-sources
+FALLBACK_DOWNLOAD_PATH ?= https://23skidoo.info/depends-sources
 
 BUILD = $(shell ./config.guess)
 HOST ?= $(BUILD)
