@@ -578,7 +578,22 @@ void CStratumClient::ThreadWorker(int nWorkerId)
 
         // Share bound: quark(header) <= diff1/vardiff. Compared in doubles —
         // plenty for share screening; the pool revalidates every submit.
-        const double dTargetBound = DIFF1_TARGET * SHARE_MULTIPLIER / dDiff;
+        // NOTE: deliberately NOT multiplied by SHARE_MULTIPLIER. Miningcore will
+        // happily accept a share that loose -- its acceptance test is
+        // (Diff1/hash) * shareMultiplier >= D -- but no other miner submits at that
+        // bound. cpuminer, sgminer and every stratum client screen against the plain
+        // difficulty they were handed in mining.set_difficulty. Submitting at the
+        // lenient bound produces 256 shares where they produce one, and since PPLNS
+        // credits stored share difficulty, a wallet doing so earns 256x what an
+        // equivalent third-party miner earns. Measured live 2026-09-10: a 95.56 kH/s
+        // wallet took 98.31% of pool rewards against a 236 kH/s GPU on sgminer.
+        //
+        // PPLNS is proportional, so matching the other miners costs this wallet
+        // nothing -- what matters is that every client uses the SAME bound.
+        // Do not re-add the multiplier here to 'fix' a low share rate; a low share
+        // rate against this pool is correct, and the pool-side display was fixed
+        // separately in miningcore's HashrateFromShares.
+        const double dTargetBound = DIFF1_TARGET / dDiff;
 
         for (uint32_t nNonce = 0; !fShutdown; nNonce++) {
             header.nNonce = nNonce;
