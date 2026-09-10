@@ -1,3 +1,12 @@
+<!-- home-banner -->
+> ### 🏠 Home is [git.subgenius.finance](https://git.subgenius.finance/SubGeniusFinance/Offerings-to-Cthulhu).
+>
+> The GitHub copy is a **mirror, pushed from here** — issues and pull requests opened there are not watched.
+> Builds and downloads: **[23skidoo.info](https://23skidoo.info)** — Offerings (OFF) wallet downloads.
+>
+> **Have a fork or a clone?** Point it home with `git remote set-url origin https://git.subgenius.finance/SubGeniusFinance/Offerings-to-Cthulhu.git`
+
+---
 # Offerings to Cthulhu (OFF)
 
 > *ph'nglui mglw'nafh Cthulhu R'lyeh wgah'nagl fhtagn*
