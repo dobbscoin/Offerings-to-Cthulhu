@@ -413,10 +413,24 @@ bool CStratumClient::SubmitShare(const std::string& strJobId, const std::string&
     return true;
 }
 
-// Bitcoin difficulty-1 target (0x00000000ffff0000…) as a double; Miningcore's
-// share test for this coin is diff1 / quark(header) >= 0.99 * vardiff
-// (shareMultiplier is 1 in the pool's coin definition).
-static const double DIFF1_TARGET = 65535.0 * std::pow(2.0, 208.0);
+// Share bound for this coin's pool. Miningcore scores a submitted share as
+//     (Diff1 / quark(header)) * shareMultiplier >= stratumDifficulty
+// with Diff1 = 65535 * 2^208, Bitcoin's difficulty-1 target. Offerings' coin
+// definition sets shareMultiplier = 256, so the pool actually accepts anything
+// under Diff1 * 256 -- eight binary orders more permissive than bare diff-1.
+// This constant folds the multiplier in: 208 + 8 = 216.
+//
+// It read 2^208 until 2026-09-10, and the comment here asserted the multiplier
+// was 1. It is not, and never was. The effect was a miner 256x stricter than the
+// pool it was talking to: it discarded 255 of every 256 valid shares before
+// submitting, so the pool credited a fraction of the work actually done while
+// the Mining tab went on reporting the true local hashrate. Vardiff hides some
+// of it by ratcheting toward the 0.0001 floor, which is why this looked merely
+// like a low share rate instead of a bug.
+//
+// PER-COIN: shareMultiplier is 65536 on Dobbscoin, so that tree needs 208+16=224.
+// Do not copy this constant between the two without re-deriving the exponent.
+static const double DIFF1_TARGET = 65535.0 * std::pow(2.0, 216.0);
 
 //! Stratum prevhash (dword-order-reversed RPC hash) → uint256 (internal LE),
 //! per research/stratum-dialect-probe-2026-08-07.md: reversing the 8 words
