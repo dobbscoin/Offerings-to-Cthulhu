@@ -3,9 +3,10 @@
 
 Pre-fork: countdown to block 1,000,000 (the original behavior).
 Post-fork: proclamation page — "THE THRESHOLD HOLDS" — with live tip,
-days-since-Awakening, OFFSIG-window-close ETA, Reclamation-close countdown,
-plus the canonical "what activated" / "notice to miners" / "how to help"
-sections.
+days-since-Awakening, the Ritual Renewed (current rite or countdown to the
+next finale, mirrored from RitualBonus() in src/main.cpp), Reclamation-close
+countdown, plus the canonical "since the Awakening" / "what activated" /
+"how to help" sections.
 
 Run on a 1-minute cron."""
 import subprocess, json, os, time
@@ -76,9 +77,28 @@ OFFSIG_END = 1050666
 CANON_END  = 1047248      # last canon chunk inscribed; the Dreaming begins at +1
 ELDERSIGN  = 1055555      # BIP66 + BIP65 + 240-conf maturity + rolling checkpoints
 FIRST_FINALE = 1141666    # Ritual Renewed — first 10,000 OFF finale (~autumnal equinox)
-RITE_START   = FIRST_FINALE - 28*1440   # daily special blocks begin (block 1,101,346)
+PERIOD       = 263000     # the rite recurs every 263,000 blocks (~6 months); MUST match src/main.cpp
+DAY          = 1440       # blocks per chain-day at the 60s target
 RECLAMATION_DAYS = 730    # 2-year window
-RELEASE_TAG = "v2.1.2-Nodens"  # current GitHub release; bump in tandem with new tags
+RELEASE_TAG = "v2.1.3-Nodens"  # current release; bump in tandem with new tags
+
+
+def ritual_bonus(h):
+    """Mirror of RitualBonus() in src/main.cpp, in whole OFF. Display only."""
+    if h < FIRST_FINALE - 28*DAY:
+        return 0
+    k = max(0, (h - FIRST_FINALE + PERIOD//2) // PERIOD)
+    d = FIRST_FINALE + k*PERIOD - h
+    if d < 0 or d > 28*DAY or d % DAY:
+        return 0
+    day = d // DAY
+    return 10000 if day == 0 else 1000 if day <= 5 else 100 if day <= 12 else 10 if day <= 19 else 1 if day <= 26 else 0
+
+
+def next_finale(h):
+    """Next finale height at or above h (GetRitualStatus() in src/main.cpp)."""
+    k = 0 if h <= FIRST_FINALE else (h - FIRST_FINALE + PERIOD - 1) // PERIOD
+    return FIRST_FINALE + k*PERIOD
 OUT   = "/var/www/23skidoo.info/awakening/index.html"
 CACHE = os.path.join(STATE_DIR, "countdown_cache.json")
 
@@ -250,63 +270,70 @@ def render_postfork():
         except Exception:
             return fallback
 
-    window_closed = tip >= OFFSIG_END
+    close_str = block_time_str(OFFSIG_END, "2026-07-20 09:14 UTC")
+    canon_str = block_time_str(CANON_END,  "2026-07-17 20:36 UTC")
+    elder_str = block_time_str(ELDERSIGN,  "2026-07-23 19:00 UTC")
 
-    if not window_closed:
-        # OFFSIG window still open: live ETA to close at h=1,050,666.
-        sig_remaining = OFFSIG_END - tip
-        sig_eta_secs  = sig_remaining / rate if rate > 0 else 0
-        sig_eta_epoch = now + sig_eta_secs
-        sig_eta_str   = time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime(sig_eta_epoch))
-        sig_days_left = sig_eta_secs / 86400.0
-        sig_progress  = min(100.0, max(0.0, 100.0 * (tip - FORK) / (OFFSIG_END - FORK)))
-    else:
-        # Window sealed: the countdown pivots to the first Ritual Renewed finale.
-        close_str     = block_time_str(OFFSIG_END, "2026-07-20 09:14 UTC")
-        canon_str     = block_time_str(CANON_END,  "2026-07-17 20:36 UTC")
-        elder_str     = block_time_str(ELDERSIGN,  "2026-07-23 19:00 UTC")
-        fin_remaining = max(0, FIRST_FINALE - tip)
-        fin_eta_secs  = fin_remaining / rate if rate > 0 else 0
-        sig_eta_epoch = now + fin_eta_secs          # JS tick target
-        fin_eta_str   = time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime(sig_eta_epoch))
-        fin_days_left = fin_eta_secs / 86400.0
-        rite_remaining = max(0, RITE_START - tip)
-        sig_progress  = min(100.0, max(0.0, 100.0 * (tip - OFFSIG_END) / (FIRST_FINALE - OFFSIG_END)))
+    # ---- The Ritual Renewed: where the chain stands in its 263,000-block cycle ----
+    F          = next_finale(tip + 1)                 # next finale not yet mined
+    prev_F     = F - PERIOD if F - PERIOD >= FIRST_FINALE else OFFSIG_END
+    rite_start = F - 28*DAY
+    in_rite    = tip >= rite_start
+    fin_remaining = F - tip
+    fin_eta_epoch = now + (fin_remaining / rate if rate > 0 else 0)
+    fin_eta_str   = time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime(fin_eta_epoch))
+    fin_days_left = (fin_eta_epoch - now) / 86400.0
+    fin_progress  = min(100.0, max(0.0, 100.0 * (tip - prev_F) / (F - prev_F)))
+    rite_total    = sum(ritual_bonus(F - j*DAY) for j in range(29))    # 15,777 OFF per rite
 
-    # ---- template fragments that differ between the two states -------------
-    if not window_closed:
-        eta_html = f"""<div class="eta">Conclave signed-mining window closes at block <strong>{OFFSIG_END:,}</strong><br>(<strong>{sig_eta_str}</strong>, ~{sig_days_left:.1f} days &mdash; <span id="sig-tick">live</span>)</div>"""
-        barlabel_html = f"""{sig_progress:.2f}% of the canon-transcription window past &mdash; {blocks_since_fork:,} of {OFFSIG_END - FORK:,} signed blocks mined"""
-        cell3_html = f"""<div class="cell"><b>{sig_remaining:,}</b><span>blocks of OFFSIG left</span></div>"""
-        tick_suffix, tick_done = "left", "window closed"
-        miner_notice_html = f"""<div class="rules" style="border-left:3px solid var(--accent);">
-    <div class="eyebrow" style="margin-bottom:.6em">A notice to independent miners</div>
-    <p style="margin:.4em 0;">From block <strong style="color:var(--accent);">999,991</strong> through block <strong style="color:var(--accent);">{OFFSIG_END:,}</strong> &mdash; about <strong>35 days</strong>, 50,676 blocks &mdash; only blocks signed by one of the three Conclave keys are accepted. Unsigned blocks are rejected as <em>bad-conclave-sig</em>.</p>
-    <p style="margin:.4em 0;">If you are mining Offerings outside the Conclave pool, please point your hashrate elsewhere for the duration of the window. The Descent and the Codex of the Drowned must be inscribed in an unbroken sequence. After block <strong>{OFFSIG_END + 1:,}</strong> mining is permissionless again, and you are welcome to return.</p>
-    <p style="margin:.4em 0; color:var(--dim); font-style:italic;">The Sleeper has turned. The Reading must not be broken.</p>
-  </div>"""
-        since_box_html = ""
+    if in_rite:
+        nb = next(F - j*DAY for j in range(26, -1, -1) if F - j*DAY > tip and ritual_bonus(F - j*DAY))
+        nb_eta = time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime(now + (nb - tip) / rate))
+        eta_html = f"""<div class="eta"><strong style="color:var(--gold);">The Ritual Renewed is underway.</strong><br>
+  Next bounty block <strong>{nb:,}</strong> pays <strong style="color:var(--gold);">+{ritual_bonus(nb):,} OFF</strong> to whoever mines it (~{nb_eta}).<br>
+  The finale falls at block <strong>{F:,}</strong> (<strong>{fin_eta_str}</strong> &mdash; <span id="sig-tick">live</span>)<br>
+  &middot; One block, one worshipper, <strong style="color:var(--gold);">10,000 OFF</strong> &middot;</div>"""
     else:
-        eta_html = f"""<div class="eta">The Conclave signed-mining window has closed, sealed at block <strong>{OFFSIG_END:,}</strong><br>
-  Mining is permissionless again.<br>
-  Next: <strong style="color:var(--gold);">the Ritual Renewed</strong>: First 'Great Ritual Finale' at block <strong>{FIRST_FINALE:,}</strong><br>
-  (<strong>{fin_eta_str}</strong>, ~{fin_days_left:.0f} days &mdash; <span id="sig-tick">live</span>)<br>
-  &middot; One block, One worshipper, <strong style="color:var(--gold);">10,000 (OFF)</strong> &middot;</div>"""
-        barlabel_html = f"""{sig_progress:.2f}% of the road to the first Finale &mdash; the 29-day rite of daily offering blocks begins at block {RITE_START:,} ({rite_remaining:,} blocks away)"""
-        cell3_html = f"""<div class="cell"><b>{fin_remaining:,}</b><span>blocks to the Finale</span></div>"""
-        tick_suffix, tick_done = "to the Finale", "the Finale is upon us"
-        miner_notice_html = f"""<div class="rules" style="border-left:3px solid var(--accent);">
-    <div class="eyebrow" style="margin-bottom:.6em">A notice to independent miners</div>
-    <p style="margin:.4em 0;">The signed-mining window <strong>has closed</strong>. Since block <strong style="color:var(--accent);">{OFFSIG_END + 1:,}</strong> mining is permissionless again &mdash; any hand may turn the wheel. Point Quark hashrate at <a href="https://pool.23skidoo.info/">the pool</a> or solo-mine; every block extends the Restoration.</p>
-    <p style="margin:.4em 0;">The chain now speaks in its sleep: blocks we mine carry hash-seeded R&rsquo;lyehian &mdash; <em>the Dreaming</em> &mdash; in the coinbase. Blocks from outside daemons simply dream silently.</p>
-    <p style="margin:.4em 0; color:var(--dim); font-style:italic;">The Reading is complete. The Dreaming has begun.</p>
+        eta_html = f"""<div class="eta">Next: <strong style="color:var(--gold);">the Ritual Renewed</strong>. The rite opens at block <strong>{rite_start:,}</strong>;<br>
+  its finale falls at block <strong>{F:,}</strong> (<strong>{fin_eta_str}</strong>, ~{fin_days_left:.0f} days &mdash; <span id="sig-tick">live</span>)<br>
+  &middot; One block, one worshipper, <strong style="color:var(--gold);">10,000 OFF</strong> &middot;</div>"""
+    barlabel_html = f"""{fin_progress:.2f}% of the way from block {prev_F:,} to the next finale &mdash; the 29-day rite opens at block {rite_start:,}""" + ("" if in_rite else f""" ({rite_start - tip:,} blocks away)""")
+    cell3_html = f"""<div class="cell"><b>{fin_remaining:,}</b><span>blocks to the Finale</span></div>"""
+    tick_suffix, tick_done = "to the Finale", "the Finale is upon us"
+    tick_epoch = fin_eta_epoch
+
+    ritual_html = f"""<div class="rules" style="border-left:3px solid var(--gold);">
+    <div class="eyebrow" style="margin-bottom:.6em; color:var(--gold)">The Ritual Renewed</div>
+    <p style="margin:.4em 0;">Twice a year, anchored by height so its finales fall near the equinoxes, the chain keeps a 29-day rite: one bounty block every 1,440 blocks, the bonus added on top of the 1.5 OFF base and paid <strong>entirely to whoever mines it</strong>. The Treasury&rsquo;s 1/8 is taken from the base alone.</p>
+    <ul>
+      <li>Days 28&ndash;27 &middot; <em>sacrifice</em> &mdash; base reward only</li>
+      <li>Days 26&ndash;20 &middot; <em>acceptance</em> &mdash; +1 OFF</li>
+      <li>Days 19&ndash;13 &middot; <em>greed</em> &mdash; +10 OFF</li>
+      <li>Days 12&ndash;6 &middot; <em>fervor</em> &mdash; +100 OFF</li>
+      <li>Days 5&ndash;1 &middot; <em>the Tharanak shagg</em> &mdash; +1,000 OFF</li>
+      <li>The finale &middot; one block on a height ending in 666 &mdash; <strong style="color:var(--gold);">+10,000 OFF</strong></li>
+    </ul>
+    <p style="margin:.4em 0;">{rite_total:,} OFF per rite, every {PERIOD:,} blocks, enforced by consensus. Mining is permissionless: <a href="https://pool.23skidoo.info/">the pool</a> or solo from the wallet.</p>
   </div>"""
-        since_box_html = f"""<div class="rules">
+
+    # One line per completed rite, oldest first; extends itself every ~6 months.
+    ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"]
+    rites_html = ""
+    Fi, n = FIRST_FINALE, 0
+    while Fi <= tip:
+        when = block_time_str(Fi, "2026-09-22 14:58 UTC" if Fi == FIRST_FINALE else "")
+        num = ROMAN[n] if n < len(ROMAN) else str(n + 1)
+        first_pay = Fi - 26*DAY
+        rites_html += f"""
+      <li>&#128367;&#65039; <strong>Ritual {num} complete</strong> &mdash; 27 bounty blocks from block {first_pay:,}, {rite_total:,} OFF paid exactly as coded; the 10,000 OFF finale at block <strong>{Fi:,}</strong> ({when}) went to one worshipper.</li>"""
+        Fi, n = Fi + PERIOD, n + 1
+
+    since_box_html = f"""<div class="rules">
     <div class="eyebrow" style="margin-bottom:.6em">Since the Awakening</div>
     <ul>
       <li>&#128214; <strong>The canon is transcribed</strong> &mdash; all 47,248 fragments of the Lovecraft corpus inscribed by block <strong>{CANON_END:,}</strong> ({canon_str}). The chain stopped quoting and started speaking: <em>the Dreaming</em>.</li>
       <li>&#128737;&#65039; <strong>The window sealed</strong> at block <strong>{OFFSIG_END:,}</strong> ({close_str}) &mdash; 50,676 Conclave-signed blocks, the Reading unbroken. Mining permissionless from {OFFSIG_END + 1:,}.</li>
-      <li>&#128736;&#65039; <strong>Eldersign hardening live</strong> at block <strong>{ELDERSIGN:,}</strong> ({elder_str}) &mdash; strict DER signatures (BIP66), CHECKLOCKTIMEVERIFY (BIP65), 240-confirmation coinbase maturity, rolling checkpoints.</li>
+      <li>&#128736;&#65039; <strong>Eldersign hardening live</strong> at block <strong>{ELDERSIGN:,}</strong> ({elder_str}) &mdash; strict DER signatures (BIP66), CHECKLOCKTIMEVERIFY (BIP65), 240-confirmation coinbase maturity, rolling checkpoints.</li>{rites_html}
     </ul>
   </div>"""
 
@@ -325,7 +352,7 @@ def render_postfork():
 <meta http-equiv="refresh" content="60">
 <title>The Threshold &mdash; Offerings to Cthulhu</title>
 {STYLE_BLOCK}
-<style>.bar > i {{ width:{sig_progress:.3f}%; }}</style></head>
+<style>.bar > i {{ width:{fin_progress:.3f}%; }}</style></head>
 <body><div class="wrap">{HEADER_HTML}
   <div class="eyebrow">SubGenius.Finance &mdash; The Conclave</div>
 
@@ -363,7 +390,7 @@ def render_postfork():
     <div class="cell"><b>{int(rec_days_left)}d</b><span>Reclamation window left</span></div>
   </div>
 
-  {miner_notice_html}
+  {ritual_html}
 
   {since_box_html}
 
@@ -385,9 +412,9 @@ def render_postfork():
       <li>&#128640; <strong>Run a node.</strong> Every wallet running {RELEASE_TAG} is another voice reciting the rite. Hashrate concentrates; node count distributes. <a href="https://23skidoo.info/downloads/">Download the wallet &rarr;</a></li>
       <li>&#9935;&#65039; <strong>Mine on the pool.</strong> <code>stratum+tcp://pool.23skidoo.info:3040</code> &mdash; Quark, PPLNS, 0.1 OFF minimum payout. Every pool block carries the Codex&rsquo;s Dreaming verses automatically. <a href="https://pool.23skidoo.info/">pool.23skidoo.info &rarr;</a></li>
       <li>&#127769; <strong>File a Reclamation claim.</strong> If you ever held OFF on the original chain, the Conclave Treasury has a budget for you. WR-A formula-driven, Class-B discretionary, gap-era recovery hooks. <a href="/bridge/">Verify a claim &rarr;</a></li>
-      <li>&#128083; <strong>Read the Codex.</strong> The chain is transcribing the Lovecraft canon, fragment by fragment. Forty-seven thousand blocks of public-domain horror, ending in an inheritance: the chain&rsquo;s own voice. <a href="/codex/">The Library &rarr;</a></li>
+      <li>&#128083; <strong>Read the Codex.</strong> The chain transcribed the Lovecraft canon fragment by fragment: 47,248 blocks of public-domain horror, every source block printed under its page. Since then it speaks in its own voice. <a href="/codex/">The Library &rarr;</a></li>
       <li>&#128279; <strong>Watch the Treasury.</strong> Every tithe-funded spend is logged publicly. Grants, Reclamation payouts, Mutual Aid &mdash; transparent ledger. <a href="/bridge/treasury/">The Conclave Treasury &rarr;</a></li>
-      <li>&#128172; <strong>Join the Conclave.</strong> Discord, Bitcointalk, GitHub &mdash; the Old Order is open to anyone who wants to row R&rsquo;lyeh&rsquo;s coast. <a href="https://discord.gg/h6SjDZjheN">/discord &rarr;</a></li>
+      <li>&#128172; <strong>Join the Conclave.</strong> Discord, Bitcointalk, and <a href="https://git.subgenius.finance/SubGeniusFinance/Offerings-to-Cthulhu">the source</a> &mdash; the Old Order is open to anyone who wants to row R&rsquo;lyeh&rsquo;s coast. <a href="https://discord.gg/h6SjDZjheN">/discord &rarr;</a></li>
     </ul>
   </div>
 
@@ -404,9 +431,9 @@ def render_postfork():
 {FOOTER_HTML}
 </div>
 <script>
-  // Live tick: time since Awakening + ETA to OFFSIG end.
+  // Live tick: time since Awakening + ETA to the next Ritual finale.
   var awoke = {awakening_ts} * 1000;
-  var sigEta = {int(sig_eta_epoch)} * 1000;
+  var sigEta = {int(tick_epoch)} * 1000;
   function fmtDur(ms) {{
     if (ms <= 0) return "now";
     var s = Math.floor(ms/1000), d=Math.floor(s/86400); s-=d*86400;
