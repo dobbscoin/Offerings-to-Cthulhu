@@ -681,5 +681,16 @@ Value submitblock(const Array& params, bool fHelp)
     if (!fAccepted)
         return "rejected"; // TODO: report validation state
 
+    // A valid block that is not on the main chain (a second solution for the
+    // same template, stored on a side branch) must not be reported as accepted:
+    // pools treat a null result as a found block and credit its reward, but the
+    // chain pays only once. Bitcoin Core 0.10+ returns "inconclusive" here too.
+    {
+        LOCK(cs_main);
+        map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.find(pblock.GetHash());
+        if (mi == mapBlockIndex.end() || !chainActive.Contains(mi->second))
+            return "inconclusive";
+    }
+
     return Value::null;
 }
