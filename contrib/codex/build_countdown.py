@@ -152,6 +152,10 @@ STYLE_BLOCK = f"""<style>
   .cd-tick {{ font-size:1.05rem; color:var(--gold); letter-spacing:.22em; line-height:1;
     text-shadow:0 0 14px rgba(255,215,0,.55), 0 0 4px rgba(255,215,0,.4); opacity:.95; }}
   .eta {{ color:var(--warn); font-size:1.05rem; margin-bottom:1.8em; }}
+  .eta > div {{ line-height:1.55; margin:.3em 0; }}
+  .eta .nw {{ white-space:nowrap; }}
+  .eta .sep {{ opacity:.45; margin:0 .25em; }}
+  .eta .eta-prize {{ margin-top:.75em; letter-spacing:.04em; }}
   .bar {{ height:14px; background:#0c1714; border:1px solid #16302a; border-radius:8px; overflow:hidden; margin:1.4em 0 .4em; }}
   .bar > i {{ display:block; height:100%;
     background:linear-gradient(90deg,#1f6f55,var(--accent)); box-shadow:0 0 16px var(--accent); }}
@@ -289,14 +293,19 @@ def render_postfork():
     if in_rite:
         nb = next(F - j*DAY for j in range(26, -1, -1) if F - j*DAY > tip and ritual_bonus(F - j*DAY))
         nb_eta = time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime(now + (nb - tip) / rate))
-        eta_html = f"""<div class="eta"><strong style="color:var(--gold);">The Ritual Renewed is underway.</strong><br>
-  Next bounty block <strong>{nb:,}</strong> pays <strong style="color:var(--gold);">+{ritual_bonus(nb):,} OFF</strong> to whoever mines it (~{nb_eta}).<br>
-  The finale falls at block <strong>{F:,}</strong> (<strong>{fin_eta_str}</strong> &mdash; <span id="sig-tick">live</span>)<br>
-  &middot; One block, one worshipper, <strong style="color:var(--gold);">10,000 OFF</strong> &middot;</div>"""
+        eta_html = f"""<div class="eta">
+  <div><strong style="color:var(--gold);">The Ritual Renewed is underway.</strong></div>
+  <div>Next bounty block <strong>{nb:,}</strong> pays <strong style="color:var(--gold);">+{ritual_bonus(nb):,} OFF</strong> to whoever mines it <span class="nw">(~{nb_eta})</span></div>
+  <div><span class="nw">Finale at block <strong>{F:,}</strong></span> <span class="sep">&middot;</span> <span class="nw"><strong>{fin_eta_str}</strong></span> <span class="sep">&middot;</span> <span class="nw" id="sig-tick">live</span></div>
+  <div class="eta-prize">One block, one worshipper, <strong style="color:var(--gold);">10,000 OFF</strong></div>
+</div>"""
     else:
-        eta_html = f"""<div class="eta">Next: <strong style="color:var(--gold);">the Ritual Renewed</strong>. The rite opens at block <strong>{rite_start:,}</strong>;<br>
-  its finale falls at block <strong>{F:,}</strong> (<strong>{fin_eta_str}</strong>, ~{fin_days_left:.0f} days &mdash; <span id="sig-tick">live</span>)<br>
-  &middot; One block, one worshipper, <strong style="color:var(--gold);">10,000 OFF</strong> &middot;</div>"""
+        eta_html = f"""<div class="eta">
+  <div>Next: <strong style="color:var(--gold);">the Ritual Renewed</strong></div>
+  <div><span class="nw">The rite opens at block <strong>{rite_start:,}</strong></span> <span class="sep">&middot;</span> <span class="nw">finale at block <strong>{F:,}</strong></span></div>
+  <div><span class="nw"><strong>{fin_eta_str}</strong></span> <span class="sep">&middot;</span> <span class="nw" id="sig-tick">live</span></div>
+  <div class="eta-prize">One block, one worshipper, <strong style="color:var(--gold);">10,000 OFF</strong></div>
+</div>"""
     barlabel_html = f"""{fin_progress:.2f}% of the way from block {prev_F:,} to the next finale &mdash; the 29-day rite opens at block {rite_start:,}""" + ("" if in_rite else f""" ({rite_start - tip:,} blocks away)""")
     cell3_html = f"""<div class="cell"><b>{fin_remaining:,}</b><span>blocks to the Finale</span></div>"""
     tick_suffix, tick_done = "to the Finale", "the Finale is upon us"
