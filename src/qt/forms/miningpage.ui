@@ -168,6 +168,16 @@
     </layout>
    </item>
    <item>
+    <widget class="QLabel" name="poolMiningPresetNote">
+     <property name="text">
+      <string>The pool comes filled in as pool.23skidoo.info:3040, the congregation the Conclave keeps. Any (OFF) stratum pool will take your offering; type another host:port to go elsewhere. The pay-to address starts blank. If one is already here, it is the address you entered last time, remembered on this machine alone.</string>
+     </property>
+     <property name="wordWrap">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
     <layout class="QHBoxLayout" name="poolMiningAddressRow">
      <item>
       <widget class="QLabel" name="poolMiningAddressLabel">
