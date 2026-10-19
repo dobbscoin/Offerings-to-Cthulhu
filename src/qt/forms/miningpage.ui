@@ -168,16 +168,6 @@
     </layout>
    </item>
    <item>
-    <widget class="QLabel" name="poolMiningPresetNote">
-     <property name="text">
-      <string>The pool comes filled in as pool.23skidoo.info:3040, the congregation the Conclave keeps. Any (OFF) stratum pool will take your offering; type another host:port to go elsewhere. The pay-to address starts blank. If one is already here, it is the address you entered last time, remembered on this machine alone.</string>
-     </property>
-     <property name="wordWrap">
-      <bool>true</bool>
-     </property>
-    </widget>
-   </item>
-   <item>
     <layout class="QHBoxLayout" name="poolMiningAddressRow">
      <item>
       <widget class="QLabel" name="poolMiningAddressLabel">
@@ -194,6 +184,19 @@
       </widget>
      </item>
     </layout>
+   </item>
+   <item>
+    <widget class="QLabel" name="poolMiningAddressNote">
+     <property name="visible">
+      <bool>false</bool>
+     </property>
+     <property name="text">
+      <string>This pay-to address was filled in from the last time you joined the Communal Rite on this machine. The wallet ships with none; the address is yours, kept in this computer's settings. Change it if your offerings should go elsewhere.</string>
+     </property>
+     <property name="wordWrap">
+      <bool>true</bool>
+     </property>
+    </widget>
    </item>
    <item>
     <layout class="QHBoxLayout" name="poolMiningThreadsRow">

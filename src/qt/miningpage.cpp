@@ -61,6 +61,10 @@ MiningPage::MiningPage(QWidget *parent) :
     ui->poolMiningEndpoint->setText(
         settings.value("poolMiningEndpoint", "pool.23skidoo.info:3040").toString());
     ui->poolMiningAddress->setText(settings.value("poolMiningAddress", "").toString());
+    // The only way this box arrives filled is a previous session on this
+    // computer: no address ships with the wallet. Say so, so nobody takes
+    // it for a preset that pays someone else.
+    ui->poolMiningAddressNote->setVisible(!ui->poolMiningAddress->text().isEmpty());
     int nSavedThreads = settings.value("poolMiningThreads", 1).toInt();
     ui->poolMiningThreads->setMaximum(idealThreads);
     ui->poolMiningThreads->setValue(qBound(1, nSavedThreads, idealThreads));
