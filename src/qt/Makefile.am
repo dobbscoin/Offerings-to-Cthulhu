@@ -94,6 +94,7 @@ QT_FORMS_UI = \
   forms/intro.ui \
   forms/openuridialog.ui \
   forms/optionsdialog.ui \
+  forms/miningpage.ui \
   forms/overviewpage.ui \
   forms/receivecoinsdialog.ui \
   forms/receiverequestdialog.ui \
@@ -128,6 +129,7 @@ QT_MOC_CPP = \
   moc_overviewpage.cpp \
   moc_codexpage.cpp \
   moc_codexscanner.cpp \
+  moc_miningpage.cpp \
   moc_paymentserver.cpp \
   moc_peertablemodel.cpp \
   moc_qvalidatedlineedit.cpp \
@@ -194,6 +196,7 @@ BITCOIN_QT_H = \
   overviewpage.h \
   codexpage.h \
   codexscanner.h \
+  miningpage.h \
   paymentrequestplus.h \
   paymentserver.h \
   peertablemodel.h \
@@ -301,6 +304,7 @@ BITCOIN_QT_CPP += \
   overviewpage.cpp \
   codexpage.cpp \
   codexscanner.cpp \
+  miningpage.cpp \
   paymentrequestplus.cpp \
   paymentserver.cpp \
   receivecoinsdialog.cpp \

@@ -12,6 +12,7 @@
 #include "optionsmodel.h"
 #include "overviewpage.h"
 #include "codexpage.h"
+#include "miningpage.h"
 #include "receivecoinsdialog.h"
 #include "sendcoinsdialog.h"
 #include "signverifymessagedialog.h"
@@ -55,12 +56,14 @@ WalletView::WalletView(QWidget *parent):
     receiveCoinsPage = new ReceiveCoinsDialog();
     sendCoinsPage = new SendCoinsDialog();
     codexPage = new CodexPage();
+    miningPage = new MiningPage();
 
     addWidget(overviewPage);
     addWidget(transactionsPage);
     addWidget(receiveCoinsPage);
     addWidget(sendCoinsPage);
     addWidget(codexPage);
+    addWidget(miningPage);
 
     // Clicking on a transaction on the overview pre-selects the transaction on the transaction history page
     connect(overviewPage, SIGNAL(transactionClicked(QModelIndex)), transactionView, SLOT(focusTransaction(QModelIndex)));
@@ -105,6 +108,7 @@ void WalletView::setClientModel(ClientModel *clientModel)
 
     overviewPage->setClientModel(clientModel);
     codexPage->setClientModel(clientModel);
+    miningPage->setClientModel(clientModel);
 }
 
 void WalletView::setWalletModel(WalletModel *walletModel)
@@ -167,6 +171,11 @@ void WalletView::gotoHistoryPage()
 void WalletView::gotoCodexPage()
 {
     setCurrentWidget(codexPage);
+}
+
+void WalletView::gotoMiningPage()
+{
+    setCurrentWidget(miningPage);
 }
 
 void WalletView::gotoReceiveCoinsPage()

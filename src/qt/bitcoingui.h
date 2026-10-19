@@ -78,6 +78,7 @@ private:
     QAction *overviewAction;
     QAction *historyAction;
     QAction *codexAction;
+    QAction *miningAction;
     QAction *quitAction;
     QAction *sendCoinsAction;
     QAction *usedSendingAddressesAction;
@@ -163,6 +164,8 @@ private slots:
     void gotoHistoryPage();
     /** Switch to Codex page */
     void gotoCodexPage();
+    /** Switch to Mining page */
+    void gotoMiningPage();
     /** Switch to receive coins page */
     void gotoReceiveCoinsPage();
     /** Switch to send coins page */

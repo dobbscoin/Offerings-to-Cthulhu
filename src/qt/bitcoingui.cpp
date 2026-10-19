@@ -264,8 +264,15 @@ void BitcoinGUI::createActions(bool fIsTestnet)
     codexAction->setStatusTip(tr("Read the on-chain canon"));
     codexAction->setToolTip(codexAction->statusTip());
     codexAction->setCheckable(true);
-    codexAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_5));
+    codexAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_6));
     tabGroup->addAction(codexAction);
+
+    miningAction = new QAction(QIcon(":/icons/tx_mined"), tr("&Mining"), this);
+    miningAction->setStatusTip(tr("Offer thy CPU to the Slumbering Lord"));
+    miningAction->setToolTip(miningAction->statusTip());
+    miningAction->setCheckable(true);
+    miningAction->setShortcut(QKeySequence(Qt::ALT + Qt::Key_5));
+    tabGroup->addAction(miningAction);
 
     // These showNormalIfMinimized are needed because Send Coins and Receive Coins
     // can be triggered from the tray menu, and need to show the GUI to be useful.
@@ -279,6 +286,8 @@ void BitcoinGUI::createActions(bool fIsTestnet)
     connect(historyAction, SIGNAL(triggered()), this, SLOT(gotoHistoryPage()));
     connect(codexAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
     connect(codexAction, SIGNAL(triggered()), this, SLOT(gotoCodexPage()));
+    connect(miningAction, SIGNAL(triggered()), this, SLOT(showNormalIfMinimized()));
+    connect(miningAction, SIGNAL(triggered()), this, SLOT(gotoMiningPage()));
 
     quitAction = new QAction(QIcon(":/icons/quit"), tr("E&xit"), this);
     quitAction->setStatusTip(tr("Quit application"));
@@ -392,8 +401,17 @@ void BitcoinGUI::createMenuBar()
     // QMenuBar on several Linux styles renders icon-bearing actions as
     // an icon-only chip with no label, hiding the "Text Based Worship"
     // text entirely.
+    //
+    // The Codex sits on the menubar just before Text Based Worship. Same
+    // icon-less reasoning; it drives codexAction so the page switch and the
+    // tab-group check state stay in one place.
     if(walletFrame)
     {
+        QAction *codexMenuBarAction = new QAction(tr("&Codex"), this);
+        codexMenuBarAction->setStatusTip(codexAction->statusTip());
+        connect(codexMenuBarAction, SIGNAL(triggered()), codexAction, SLOT(trigger()));
+        appMenuBar->addAction(codexMenuBarAction);
+
         QAction *worshipMenuBarAction = new QAction(tr("&Text Based Worship"), this);
         worshipMenuBarAction->setStatusTip(openRPCConsoleAction->statusTip());
         connect(worshipMenuBarAction, SIGNAL(triggered()), rpcConsole, SLOT(show()));
@@ -411,7 +429,7 @@ void BitcoinGUI::createToolBars()
         toolbar->addAction(sendCoinsAction);
         toolbar->addAction(receiveCoinsAction);
         toolbar->addAction(historyAction);
-        toolbar->addAction(codexAction);
+        toolbar->addAction(miningAction);
         overviewAction->setChecked(true);
     }
 }
@@ -477,6 +495,7 @@ void BitcoinGUI::setWalletActionsEnabled(bool enabled)
     receiveCoinsAction->setEnabled(enabled);
     historyAction->setEnabled(enabled);
     codexAction->setEnabled(enabled);
+    miningAction->setEnabled(enabled);
     encryptWalletAction->setEnabled(enabled);
     backupWalletAction->setEnabled(enabled);
     changePassphraseAction->setEnabled(enabled);
@@ -610,6 +629,12 @@ void BitcoinGUI::gotoCodexPage()
 {
     codexAction->setChecked(true);
     if (walletFrame) walletFrame->gotoCodexPage();
+}
+
+void BitcoinGUI::gotoMiningPage()
+{
+    miningAction->setChecked(true);
+    if (walletFrame) walletFrame->gotoMiningPage();
 }
 
 void BitcoinGUI::gotoReceiveCoinsPage()

@@ -61,6 +61,8 @@ public slots:
     void gotoSendCoinsPage(QString addr = "");
     /** Switch to Codex page */
     void gotoCodexPage();
+    /** Switch to Mining page */
+    void gotoMiningPage();
 
     /** Show Sign/Verify Message dialog and switch to sign message tab */
     void gotoSignMessageTab(QString addr = "");

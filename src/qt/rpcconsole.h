@@ -12,10 +12,6 @@
 
 #include <QDialog>
 
-QT_BEGIN_NAMESPACE
-class QTimer;
-QT_END_NAMESPACE
-
 class ClientModel;
 
 namespace Ui {
@@ -58,14 +54,6 @@ private slots:
     void on_sldGraphRange_valueChanged(int value);
     /** update traffic statistics */
     void updateTrafficStats(quint64 totalBytesIn, quint64 totalBytesOut);
-    /** Mining tab — issue #8 PR A (solo mode only) */
-    void on_miningEnable_toggled(bool checked);
-    void on_miningThreads_valueChanged(int value);
-    /** Polled from a QTimer while the tab is visible; refreshes the live status line. */
-    void updateMiningStatus();
-    /** Mining tab — pool mode (in-wallet stratum client, issue #8 phase 3) */
-    void on_poolMiningToggle_clicked(bool checked);
-    void updatePoolMiningStatus();
 
 public slots:
     void clear();
@@ -75,8 +63,6 @@ public slots:
     void setNumConnections(int count);
     /** Set number of blocks shown in the UI */
     void setNumBlocks(int count);
-    /** OFFSIG window guard for the Mining tab — greys solo controls in [999991, 1050666]. */
-    void updateMiningOffsigGuard(int height);
     /** Go forward or back in history */
     void browseHistory(int offset);
     /** Scroll console view to end */
@@ -117,11 +103,6 @@ private:
     int historyPtr;
     NodeId cachedNodeid;
     QMenu *peersTableContextMenu;
-
-    /** Mining tab (issue #8 PR A) — polls getmininginfo every 2 s while the tab is visible. */
-    QTimer *miningPollTimer;
-    /** True when the OFFSIG window guard has forced the solo toggle off. */
-    bool miningSuspendedByOffsig;
 
     void startExecutor();
 };

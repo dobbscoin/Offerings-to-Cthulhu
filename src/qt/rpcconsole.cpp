@@ -1,6 +1,4 @@
 // Copyright (c) 2011-2014 The Bitcoin developers
-// Copyright (c) 2013-2014 The Offerings developers
-// Copyright (c) 2026 The Offerings Conclave / SubGenius.Finance community
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -13,7 +11,6 @@
 
 #include "rpcserver.h"
 #include "rpcclient.h"
-#include "stratum.h"
 
 #include "util.h"
 
@@ -27,25 +24,12 @@
 #include <QKeyEvent>
 #include <QMenu>
 #include <QScrollBar>
-#include <QSettings>
 #include <QThread>
 #include <QTime>
-#include <QTimer>
 
 #if QT_VERSION < 0x050000
 #include <QUrl>
 #endif
-
-// Issue #8 PR A — Mining tab live status. dHashesPerSec is the same global the
-// gethashespersec / getmininginfo RPCs read; defined in src/miner.cpp.
-extern double dHashesPerSec;
-
-// OFFSIG window — solo mining is locked in this height range because the chain
-// only accepts Conclave-signed blocks. Outside it solo mining is permissionless.
-// Mirrors chainparams.cpp::nSignedWindowStart / nOpenMiningHeight.
-static const int kOffsigWindowStart = 999991;
-static const int kOffsigWindowEnd   = 1050666;
-static const int kMiningPollMs      = 2000;
 
 // TODO: add a scrollback limit, as there is currently none
 // TODO: make it possible to filter out categories (esp debug messages when implemented)
@@ -220,9 +204,7 @@ RPCConsole::RPCConsole(QWidget *parent) :
     clientModel(0),
     historyPtr(0),
     cachedNodeid(-1),
-    peersTableContextMenu(0),
-    miningPollTimer(0),
-    miningSuspendedByOffsig(false)
+    peersTableContextMenu(0)
 {
     ui->setupUi(this);
     GUIUtil::restoreWindowGeometry("nRPCConsoleWindow", this->size(), this);
@@ -240,34 +222,6 @@ RPCConsole::RPCConsole(QWidget *parent) :
 
     // set OpenSSL version label
     ui->openSSLVersion->setText(SSLeay_version(SSLEAY_VERSION));
-
-    // Mining tab (issue #8 PR A — solo mode only).
-    // Spinner max = idealThreadCount. Timer polls dHashesPerSec while the tab is visible.
-    int idealThreads = QThread::idealThreadCount();
-    if (idealThreads < 1) idealThreads = 1;
-    ui->miningThreads->setMaximum(idealThreads);
-    miningPollTimer = new QTimer(this);
-    miningPollTimer->setInterval(kMiningPollMs);
-    connect(miningPollTimer, SIGNAL(timeout()), this, SLOT(updateMiningStatus()));
-    connect(miningPollTimer, SIGNAL(timeout()), this, SLOT(updatePoolMiningStatus()));
-
-    // Pool mode (issue #8 phase 3): restore last-used settings; reflect a
-    // client already started via -stratum/-stratumuser command-line args.
-    {
-        QSettings settings;
-        ui->poolMiningEndpoint->setText(
-            settings.value("poolMiningEndpoint", "pool.23skidoo.info:3040").toString());
-        ui->poolMiningAddress->setText(settings.value("poolMiningAddress", "").toString());
-        int nSavedThreads = settings.value("poolMiningThreads", 1).toInt();
-        ui->poolMiningThreads->setMaximum(idealThreads);
-        ui->poolMiningThreads->setValue(qBound(1, nSavedThreads, idealThreads));
-        if (g_pStratumClient && g_pStratumClient->IsRunning())
-        {
-            ui->poolMiningToggle->setChecked(true);
-            ui->poolMiningToggle->setText(tr("Stop Pool Mining"));
-            updatePoolMiningStatus();
-        }
-    }
 
     startExecutor();
     setTrafficGraphRange(INITIAL_TRAFFIC_GRAPH_MINS);
@@ -453,7 +407,6 @@ void RPCConsole::setNumBlocks(int count)
     ui->numberOfBlocks->setText(QString::number(count));
     if(clientModel)
         ui->lastBlockTime->setText(clientModel->getLastBlockDate().toString());
-    updateMiningOffsigGuard(count);
 }
 
 void RPCConsole::on_lineEdit_returnPressed()
@@ -529,235 +482,6 @@ void RPCConsole::on_tabWidget_currentChanged(int index)
     else if(clientModel)
     {
         clientModel->getPeerTableModel()->stopAutoRefresh();
-    }
-
-    // Issue #8 PR A — only poll the hashrate while the Mining tab is visible.
-    if(miningPollTimer)
-    {
-        if(ui->tabWidget->widget(index) == ui->tab_mining)
-        {
-            updateMiningStatus();
-            miningPollTimer->start();
-        }
-        else
-        {
-            miningPollTimer->stop();
-        }
-    }
-}
-
-// ============================================================================
-// Issue #8 PR A — Mining tab (solo mode only)
-// ============================================================================
-
-void RPCConsole::on_miningEnable_toggled(bool checked)
-{
-    // OFFSIG window guard. If the user somehow toggles on inside the window
-    // (shouldn't be possible — the checkbox is greyed — but be defensive),
-    // immediately bounce it back off and log.
-    if(checked && clientModel)
-    {
-        int h = clientModel->getNumBlocks();
-        if(h >= kOffsigWindowStart && h <= kOffsigWindowEnd)
-        {
-            ui->miningEnable->blockSignals(true);
-            ui->miningEnable->setChecked(false);
-            ui->miningEnable->blockSignals(false);
-            ui->miningStatus->setText(tr("Mining locked during the Codex window."));
-            return;
-        }
-    }
-
-    int threads = ui->miningThreads->value();
-    QString cmd = checked
-        ? QString("setgenerate true %1").arg(threads)
-        : QString("setgenerate false");
-    message(CMD_REQUEST, cmd);
-    emit cmdRequest(cmd);
-
-    updateMiningStatus();
-}
-
-void RPCConsole::on_miningThreads_valueChanged(int value)
-{
-    // If we're currently mining, dispatch a new setgenerate to pick up the
-    // thread-count change. Otherwise the new value just sits in the spinner
-    // and takes effect on the next toggle-on.
-    if(ui->miningEnable->isChecked())
-    {
-        QString cmd = QString("setgenerate true %1").arg(value);
-        message(CMD_REQUEST, cmd);
-        emit cmdRequest(cmd);
-    }
-}
-
-void RPCConsole::updateMiningStatus()
-{
-    // OFFSIG banner takes precedence — keep that line until the window passes.
-    if(miningSuspendedByOffsig)
-        return;
-
-    if(!ui->miningEnable->isChecked())
-    {
-        ui->miningStatus->setText(tr("Mining stopped."));
-        return;
-    }
-
-    double hps = dHashesPerSec;
-    if(hps <= 0.0)
-    {
-        ui->miningStatus->setText(tr("Mining starting…"));
-    }
-    else if(hps < 1000.0)
-    {
-        ui->miningStatus->setText(tr("Mining at %1 H/s").arg(hps, 0, 'f', 1));
-    }
-    else if(hps < 1e6)
-    {
-        ui->miningStatus->setText(tr("Mining at %1 kH/s").arg(hps / 1e3, 0, 'f', 2));
-    }
-    else
-    {
-        ui->miningStatus->setText(tr("Mining at %1 MH/s").arg(hps / 1e6, 0, 'f', 2));
-    }
-}
-
-// ============================================================================
-// Issue #8 phase 3 — Mining tab pool mode (in-wallet stratum client).
-// Talks directly to the in-process g_pStratumClient — same pattern as the
-// dHashesPerSec global the solo section reads. Pool mining is deliberately
-// NOT gated by the OFFSIG guard: pool blocks carry the Conclave signature.
-// ============================================================================
-
-void RPCConsole::on_poolMiningToggle_clicked(bool checked)
-{
-    if (!checked)
-    {
-        StopStratum();
-        ui->poolMiningToggle->setText(tr("Start Pool Mining"));
-        ui->poolMiningEndpoint->setEnabled(true);
-        ui->poolMiningAddress->setEnabled(true);
-        ui->poolMiningThreads->setEnabled(true);
-        updatePoolMiningStatus();
-        return;
-    }
-
-    // Validate inputs before spinning anything up.
-    QString strEndpoint = ui->poolMiningEndpoint->text().trimmed();
-    QString strAddress = ui->poolMiningAddress->text().trimmed();
-    int nColon = strEndpoint.lastIndexOf(':');
-    QString strHost = (nColon > 0) ? strEndpoint.left(nColon) : QString();
-    int nPort = (nColon > 0) ? strEndpoint.mid(nColon + 1).toInt() : 0;
-
-    QString strProblem;
-    if (strHost.isEmpty() || nPort <= 0 || nPort > 65535)
-        strProblem = tr("Enter the pool as host:port.");
-    else if (strAddress.isEmpty() || !strAddress.startsWith("Q") || strAddress.length() < 26)
-        strProblem = tr("Enter a valid OFF pay-to address (starts with Q).");
-
-    if (!strProblem.isEmpty())
-    {
-        ui->poolMiningToggle->blockSignals(true);
-        ui->poolMiningToggle->setChecked(false);
-        ui->poolMiningToggle->blockSignals(false);
-        ui->poolMiningStatus->setText(strProblem);
-        return;
-    }
-
-    // Replace any prior client (also covers a client left over from
-    // -stratum command-line args or the setstratum RPC) with one built
-    // from the form.
-    if (!StartStratum(strHost.toStdString(), nPort, strAddress.toStdString(),
-                      ui->poolMiningThreads->value()))
-    {
-        ui->poolMiningToggle->blockSignals(true);
-        ui->poolMiningToggle->setChecked(false);
-        ui->poolMiningToggle->blockSignals(false);
-        ui->poolMiningStatus->setText(tr("Failed to start the pool client."));
-        return;
-    }
-
-    QSettings settings;
-    settings.setValue("poolMiningEndpoint", strEndpoint);
-    settings.setValue("poolMiningAddress", strAddress);
-    settings.setValue("poolMiningThreads", ui->poolMiningThreads->value());
-
-    ui->poolMiningToggle->setText(tr("Stop Pool Mining"));
-    ui->poolMiningEndpoint->setEnabled(false);
-    ui->poolMiningAddress->setEnabled(false);
-    ui->poolMiningThreads->setEnabled(false);
-    ui->poolMiningStatus->setText(tr("Connecting to %1…").arg(strEndpoint));
-}
-
-void RPCConsole::updatePoolMiningStatus()
-{
-    if (!g_pStratumClient || !g_pStratumClient->IsRunning())
-    {
-        if (!ui->poolMiningToggle->isChecked())
-            ui->poolMiningStatus->setText(tr("Pool mining stopped."));
-        return;
-    }
-
-    if (!g_pStratumClient->IsConnected())
-    {
-        QString strErr = QString::fromStdString(g_pStratumClient->GetLastError());
-        ui->poolMiningStatus->setText(strErr.isEmpty()
-            ? tr("Connecting…")
-            : tr("Reconnecting… (%1)").arg(strErr));
-        return;
-    }
-    if (!g_pStratumClient->IsAuthorized())
-    {
-        ui->poolMiningStatus->setText(tr("Connected — authorizing…"));
-        return;
-    }
-
-    double dRate = g_pStratumClient->GetHashRate();
-    QString strRate;
-    if (dRate < 1000.0)
-        strRate = tr("%1 H/s").arg(dRate, 0, 'f', 1);
-    else if (dRate < 1e6)
-        strRate = tr("%1 kH/s").arg(dRate / 1e3, 0, 'f', 2);
-    else
-        strRate = tr("%1 MH/s").arg(dRate / 1e6, 0, 'f', 2);
-
-    ui->poolMiningStatus->setText(tr("Offering at %1 · share diff %2 · accepted %3 / rejected %4")
-        .arg(strRate)
-        .arg(g_pStratumClient->GetDifficulty())
-        .arg(g_pStratumClient->GetSharesAccepted())
-        .arg(g_pStratumClient->GetSharesRejected()));
-}
-
-void RPCConsole::updateMiningOffsigGuard(int height)
-{
-    bool inWindow = (height >= kOffsigWindowStart && height <= kOffsigWindowEnd);
-
-    ui->miningOffsigBanner->setVisible(inWindow);
-    ui->miningEnable->setEnabled(!inWindow);
-    ui->miningThreads->setEnabled(!inWindow);
-
-    if(inWindow)
-    {
-        // If solo mining was running when we entered the window, dispatch a
-        // setgenerate false and remember that we did so. We don't auto-restore
-        // when the window ends — the user re-enables manually post-canon.
-        if(ui->miningEnable->isChecked())
-        {
-            ui->miningEnable->blockSignals(true);
-            ui->miningEnable->setChecked(false);
-            ui->miningEnable->blockSignals(false);
-            QString cmd = QString("setgenerate false");
-            message(CMD_REQUEST, cmd);
-            emit cmdRequest(cmd);
-        }
-        miningSuspendedByOffsig = true;
-        ui->miningStatus->setText(tr("Mining locked — Codex window in effect."));
-    }
-    else if(miningSuspendedByOffsig)
-    {
-        // Window just ended. Clear the suspended flag and refresh the status line.
-        miningSuspendedByOffsig = false;
-        updateMiningStatus();
     }
 }
 
